@@ -1,0 +1,26 @@
+.card {
+  transition: transform 0.2s ease;
+  user-select: none;
+}
+
+.card:hover {
+  transform: scale(1.05);
+  z-index: 10;
+}
+
+.vencida {
+  border: 2px solid red;
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}

@@ -1,0 +1,100 @@
+/* Globals for Mantine Select / MultiSelect */
+.mantine-Select-input,
+.mantine-MultiSelect-input,
+.mantine-MultiSelect-inputField {
+  background-color: #ffffff !important;
+  color: #111 !important;
+  font-weight: 600 !important;
+  border: 1px solid #ccc !important;
+}
+
+.mantine-Select-label,
+.mantine-MultiSelect-label {
+  color: #ffffff !important;
+  margin-bottom: 5px !important;
+  font-weight: 600 !important;
+}
+
+.mantine-Select-dropdown,
+.mantine-MultiSelect-dropdown {
+  background-color: #ffffff !important;
+  color: #111 !important;
+  border: 1px solid #ccc !important;
+}
+
+.mantine-Select-option,
+.mantine-MultiSelect-option {
+  background-color: transparent !important;
+  color: #111 !important;
+  transition: background-color 0.1s ease;
+}
+
+.mantine-Select-option:hover,
+.mantine-MultiSelect-option:hover,
+.mantine-Select-option[data-hovered],
+.mantine-MultiSelect-option[data-hovered] {
+  background-color: #f1f3f5 !important;
+  color: #111 !important;
+}
+
+.mantine-MultiSelect-pill {
+  background-color: #e9ecef !important;
+  color: #000 !important;
+  font-weight: 600 !important;
+}
+
+/* PWA Improvements */
+* {
+  -webkit-tap-highlight-color: transparent; /* Remove blue highlight on tap */
+}
+
+body {
+  user-select: none; /* UI feels more like a native app */
+  -webkit-user-select: none;
+  touch-action: manipulation; /* Avoid double-tap zoom delay */
+}
+
+input, textarea, [contenteditable="true"] {
+  user-select: text; /* Re-enable selection for inputs */
+  -webkit-user-select: text;
+}
+
+/* Handle notches on mobile */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+/* Dashboard Table Responsive Fixes */
+.dashboard-table-container {
+  background-color: #1e1e1e;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mobile-cards-view {
+  display: flex !important;
+}
+
+.desktop-table-view {
+  display: block !important;
+}
+
+@media (max-width: 48em) {
+  .dashboard-table-container {
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+  .desktop-table-view {
+    display: none !important;
+  }
+}
+
+@media (min-width: 48.01em) {
+  .mobile-cards-view {
+    display: none !important;
+  }
+}

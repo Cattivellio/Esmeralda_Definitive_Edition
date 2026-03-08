@@ -1,0 +1,8 @@
+﻿--- CHEQUEO DE COINCIDENCIAS ---
+Cliente: V-40111222 | REGISTRO NO ENCONTRADO EN RegistroPersonaHotel
+Cliente: V-30416967 | REGISTRO ENCONTRADO! Estado: presente
+
+--- TODOS LOS REGISTROS EN RegistroPersonaHotel ---
+[Walter] - ausente
+[Libia] - presente
+[V-30416967] - presente
