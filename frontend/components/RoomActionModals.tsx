@@ -5,6 +5,7 @@ import { Habitacion } from '../types';
 import { useState, useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconTrash, IconLockOpen } from '@tabler/icons-react';
+import { api } from '../app/lib/api';
 
 interface DirtyRoomModalProps {
   habitacion: Habitacion | null;
@@ -19,8 +20,7 @@ export function DirtyRoomModal({ habitacion, onClose, onSuccess }: DirtyRoomModa
 
   useEffect(() => {
     if (habitacion) {
-      fetch('http://192.168.0.123:8000/api/habitaciones/camareras-presentes')
-        .then(res => res.json())
+      api.getCamarerasPresentes()
         .then(data => {
             setCamareras(data.map((u: any) => ({ value: u.id.toString(), label: u.nombre })));
         })
@@ -34,21 +34,15 @@ export function DirtyRoomModal({ habitacion, onClose, onSuccess }: DirtyRoomModa
     if (!habitacion || !camareraId) return;
     setLoading(true);
     try {
-      const response = await fetch(`http://192.168.0.123:8000/api/habitaciones/${habitacion.id}/limpiar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ camarera_id: parseInt(camareraId) })
+      await api.limpiarHabitacion(habitacion.id, parseInt(camareraId));
+      notifications.show({
+        title: 'Éxito',
+        message: `La habitación ${habitacion.numero} ha sido limpiada.`,
+        color: 'green',
+        icon: <IconCheck size={16} />
       });
-      if (response.ok) {
-        notifications.show({
-          title: 'Éxito',
-          message: `La habitación ${habitacion.numero} ha sido limpiada.`,
-          color: 'green',
-          icon: <IconCheck size={16} />
-        });
-        onSuccess();
-        onClose();
-      }
+      onSuccess();
+      onClose();
     } catch (err) {
       console.error(err);
     } finally {
@@ -108,19 +102,15 @@ export function BlockedRoomModal({ habitacion, onClose, onSuccess }: BlockedRoom
     if (!habitacion) return;
     setLoading(true);
     try {
-      const response = await fetch(`http://192.168.0.123:8000/api/habitaciones/${habitacion.id}/desbloquear`, {
-        method: 'POST',
+      await api.desbloquearHabitacion(habitacion.id);
+      notifications.show({
+        title: 'Éxito',
+        message: `La habitación ${habitacion.numero} ha sido desbloqueada.`,
+        color: 'blue',
+        icon: <IconLockOpen size={16} />
       });
-      if (response.ok) {
-        notifications.show({
-          title: 'Éxito',
-          message: `La habitación ${habitacion.numero} ha sido desbloqueada.`,
-          color: 'blue',
-          icon: <IconLockOpen size={16} />
-        });
-        onSuccess();
-        onClose();
-      }
+      onSuccess();
+      onClose();
     } catch (err) {
       console.error(err);
     } finally {

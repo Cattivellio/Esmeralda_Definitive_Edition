@@ -2,6 +2,7 @@ import { Modal, Group, Text, Button, ActionIcon, Stack, TextInput, SegmentedCont
 import { IconBell, IconTool, IconCheck, IconPlus, IconAlertCircle, IconTrash } from '@tabler/icons-react';
 import { useState, useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
+import { api } from '../app/lib/api';
 import { Novedad } from '../types';
 import DataTable from './DataTable';
 
@@ -25,11 +26,8 @@ export default function NovedadesModal({ opened, onClose, activeUser }: Novedade
   const loadNovedades = async () => {
     setLoadingList(true);
     try {
-      const res = await fetch('http://192.168.0.123:8000/api/novedades/');
-      if (res.ok) {
-        const data = await res.json();
-        setNovedades(data);
-      }
+      const data = await api.getNovedades();
+      setNovedades(data);
     } catch (err) {
       console.error("Error loading novedades:", err);
     } finally {
@@ -47,26 +45,20 @@ export default function NovedadesModal({ opened, onClose, activeUser }: Novedade
     if (!texto.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch('http://192.168.0.123:8000/api/novedades/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          texto,
-          tipo,
-          usuario: activeUser,
-          estado: 'pendiente'
-        })
+      await api.createNovedad({
+        texto,
+        tipo,
+        usuario: activeUser,
+        estado: 'pendiente'
       });
 
-      if (res.ok) {
-        setTexto('');
-        loadNovedades();
-        notifications.show({
-          title: 'Registro Exitoso',
-          message: `${tipo === 'novedad' ? 'Novedad' : 'Avería'} registrada correctamente`,
-          color: 'teal'
-        });
-      }
+      setTexto('');
+      loadNovedades();
+      notifications.show({
+        title: 'Registro Exitoso',
+        message: `${tipo === 'novedad' ? 'Novedad' : 'Avería'} registrada correctamente`,
+        color: 'teal'
+      });
     } catch (err) {
       notifications.show({ title: 'Error', message: 'No se pudo guardar la información', color: 'red' });
     } finally {
@@ -76,17 +68,13 @@ export default function NovedadesModal({ opened, onClose, activeUser }: Novedade
 
   const handleResolve = async (id: number) => {
     try {
-      const res = await fetch(`http://192.168.0.123:8000/api/novedades/${id}/resolver`, {
-        method: 'PUT'
+      await api.resolverAveria(id);
+      loadNovedades();
+      notifications.show({
+        title: 'Avería Resuelta',
+        message: 'El estado se ha actualizado a arreglada',
+        color: 'blue'
       });
-      if (res.ok) {
-        loadNovedades();
-        notifications.show({
-          title: 'Avería Resuelta',
-          message: 'El estado se ha actualizado a arreglada',
-          color: 'blue'
-        });
-      }
     } catch (err) {
       notifications.show({ title: 'Error', message: 'No se pudo actualizar el estado', color: 'red' });
     }

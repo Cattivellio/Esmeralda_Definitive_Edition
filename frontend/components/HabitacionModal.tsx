@@ -151,11 +151,17 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
   const [accessHistoryData, setAccessHistoryData] = useState<any[]>([]);
   const [loadingAccessHistory, setLoadingAccessHistory] = useState(false);
 
-  // Retoque
   const [showRetoqueModal, setShowRetoqueModal] = useState(false);
   const [camareraId, setCamareraId] = useState<string | null>(null);
   const [camareras, setCamareras] = useState<{value: string, label: string}[]>([]);
   const [loadingRetoque, setLoadingRetoque] = useState(false);
+
+  const [fechaEntrada, setFechaEntrada] = useState<Date>(new Date());
+  const [fechaSalidaCalculada, setFechaSalidaCalculada] = useState<Date | null>(null);
+
+  const [pagos, setPagos] = useState([{ id: Date.now(), metodo: 'Efectivo Dolar', monto: 0, referencia: '' }]);
+  const [extras, setExtras] = useState<{id: number, descripcion: string, monto: any}[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const calculateAge = (dob: any) => {
     if (!dob) return null;
@@ -174,25 +180,21 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
   const handleValidateVoucher = async () => {
     if (!voucher.trim()) return;
     try {
-      const response = await fetch(`http://192.168.0.123:8000/api/configuracion/vouchers/${voucher.trim().toUpperCase()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setAppliedVoucher(data);
-        setVoucher(data.codigo);
-        notifications.show({
-          title: 'Cupón Aplicado',
-          message: `Descuento: ${data.tipo === 'porcentaje' ? `${data.valor}%` : `$${data.valor}`}`,
-          color: 'green'
-        });
-      } else {
-        notifications.show({
-          title: 'Error',
-          message: 'Cupón no válido o inactivo.',
-          color: 'red'
-        });
-        setAppliedVoucher(null);
-      }
-    } catch (err) {
+      const data = await api.getVoucher(voucher.trim().toUpperCase());
+      setAppliedVoucher(data);
+      setVoucher(data.codigo);
+      notifications.show({
+        title: 'Cupón Aplicado',
+        message: `Descuento: ${data.tipo === 'porcentaje' ? `${data.valor}%` : `$${data.valor}`}`,
+        color: 'green'
+      });
+    } catch (err: any) {
+      notifications.show({
+        title: 'Error',
+        message: err.message || 'Cupón no válido o inactivo.',
+        color: 'red'
+      });
+      setAppliedVoucher(null);
       console.error("Error validando cupón:", err);
     }
   };
@@ -214,25 +216,16 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
     }
     setLoadingBloqueo(true);
     try {
-      const resp = await fetch(`http://192.168.0.123:8000/api/habitaciones/${habitacion.id}/bloquear`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          motivo: bloquearMotivo,
-          nueva_habitacion_id: nuevaHabitacionId ? parseInt(nuevaHabitacionId) : null
-        })
+      await api.bloquearHabitacion(habitacion.id, { 
+        motivo: bloquearMotivo,
+        nueva_habitacion_id: nuevaHabitacionId ? parseInt(nuevaHabitacionId) : null
       });
-      if (resp.ok) {
-        notifications.show({ title: 'Éxito', message: '¡Habitación bloqueada con éxito!', color: 'gray', icon: <IconLock /> });
-        if (onSuccess) onSuccess();
-        onClose();
-        setShowBloquearModal(false);
-      } else {
-        const errorData = await resp.json();
-        notifications.show({ title: 'Error', message: errorData.detail || 'Ocurrió un problema.', color: 'red', icon: <IconX /> });
-      }
-    } catch (err) {
-      notifications.show({ title: 'Error', message: 'No se pudo contactar con el servidor.', color: 'red', icon: <IconX /> });
+      notifications.show({ title: 'Éxito', message: '¡Habitación bloqueada con éxito!', color: 'gray', icon: <IconLock /> });
+      if (onSuccess) onSuccess();
+      onClose();
+      setShowBloquearModal(false);
+    } catch (err: any) {
+      notifications.show({ title: 'Error', message: err.message || 'Ocurrió un problema.', color: 'red', icon: <IconX /> });
     } finally {
       setLoadingBloqueo(false);
     }
@@ -249,11 +242,8 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
     setShowHistorialModal(true);
     setLoadingHistorial(true);
     try {
-      const response = await fetch(`http://192.168.0.123:8000/api/clientes/${tipo}${cedulaActual}/historial`, { cache: 'no-store' });
-      if (response.ok) {
-        const data = await response.json();
-        setHistorialData(data);
-      }
+      const data = await api.getClienteHistorial(`${tipo}${cedulaActual}`);
+      setHistorialData(data);
     } catch (err) {
       console.error("Error buscando historial:", err);
     } finally {
@@ -267,11 +257,8 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
     setShowRoomHistoryModal(true);
     setLoadingRoomHistory(true);
     try {
-      const response = await fetch(`http://192.168.0.123:8000/api/habitaciones/${habitacion.id}/historial`, { cache: 'no-store' });
-      if (response.ok) {
-        const data = await response.json();
-        setRoomHistoryData(data);
-      }
+      const data = await api.getHabitacionHistorial(habitacion.id);
+      setRoomHistoryData(data);
     } catch (err) {
       console.error("Error buscando historial de habitación:", err);
     } finally {
@@ -290,11 +277,8 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
     setShowAccessHistoryModal(true);
     setLoadingAccessHistory(true);
     try {
-      const response = await fetch(`http://192.168.0.123:8000/api/acceso/historial/${tipo}${cedulaActual}`, { cache: 'no-store' });
-      if (response.ok) {
-        const data = await response.json();
-        setAccessHistoryData(data);
-      }
+      const data = await api.getAccesoHistorialCliente(`${tipo}${cedulaActual}`);
+      setAccessHistoryData(data);
     } catch (err) {
       console.error("Error buscando historial de acceso:", err);
     } finally {
@@ -408,8 +392,7 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
   // Fetch habitaciones libres cuando se abre el modal de cambio o bloqueo
   useEffect(() => {
     if (showCambiarHabitacionModal || (showBloquearModal && (habitacion?.estado_actual !== 'Libre' && habitacion?.estado_actual !== 'Bloqueada'))) {
-      fetch('http://192.168.0.123:8000/api/habitaciones')
-        .then(res => res.json())
+      api.getHabitaciones()
         .then(data => {
           const libres = data.filter((h: any) => h.estado_actual === 'Libre' && h.id !== habitacion?.id);
           setHabitacionesLibres(libres.map((h: any) => ({ value: h.id.toString(), label: `Hab. ${h.numero} (${h.tipo})` })));
@@ -422,26 +405,17 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
     if (!nuevaHabitacionId || !cambioMotivo.trim() || !habitacion) return;
     setLoadingCambio(true);
     try {
-      const resp = await fetch(`http://192.168.0.123:8000/api/habitaciones/${habitacion.id}/cambiar_habitacion`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nueva_habitacion_id: parseInt(nuevaHabitacionId),
-          motivo: cambioMotivo
-        })
+      await api.cambiarHabitacion(habitacion.id, {
+        nueva_habitacion_id: parseInt(nuevaHabitacionId),
+        motivo: cambioMotivo
       });
-      if (resp.ok) {
-        notifications.show({ title: 'Éxito', message: '¡Cambio realizado con éxito!', color: 'green', icon: <IconCheck /> });
-        if (onSuccess) onSuccess();
-        else window.location.reload();
-        onClose();
-        setShowCambiarHabitacionModal(false);
-      } else {
-        const errorData = await resp.json();
-        notifications.show({ title: 'Error', message: errorData.detail || 'Ocurrió un problema.', color: 'red', icon: <IconX /> });
-      }
-    } catch (err) {
-      notifications.show({ title: 'Error', message: 'No se pudo contactar con el servidor.', color: 'red', icon: <IconX /> });
+      notifications.show({ title: 'Éxito', message: '¡Cambio realizado con éxito!', color: 'green', icon: <IconCheck /> });
+      if (onSuccess) onSuccess();
+      else window.location.reload();
+      onClose();
+      setShowCambiarHabitacionModal(false);
+    } catch (err: any) {
+      notifications.show({ title: 'Error', message: err.message || 'Ocurrió un problema.', color: 'red', icon: <IconX /> });
     } finally {
       setLoadingCambio(false);
     }
@@ -451,14 +425,12 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
   useEffect(() => {
     if (opened) {
       // Cargar horas parcial
-      fetch('http://192.168.0.123:8000/api/configuracion/settings/horas_parcial')
-        .then(res => res.json())
+      api.getConfig('horas_parcial')
         .then(data => setHorasParcialConfig(parseInt(data.valor) || 6))
         .catch(console.error);
 
       // Cargar métodos de pago
-      fetch('http://192.168.0.123:8000/api/configuracion/metodos_pago')
-        .then(res => res.json())
+      api.getMetodosPago()
         .then(data => {
           const activos = data.filter((m: any) => m.activo);
           setMetodosPagoDisponibles(activos);
@@ -470,8 +442,7 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
         .catch(console.error);
 
       // Cargar camareras presentes
-      fetch('http://192.168.0.123:8000/api/habitaciones/camareras-presentes')
-        .then(res => res.json())
+      api.getCamarerasPresentes()
         .then(data => {
             setCamareras(data.map((u: any) => ({ value: u.id.toString(), label: u.nombre })));
         })
@@ -480,7 +451,6 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
   }, [opened]);
 
   // Estado de Pagos
-  const [pagos, setPagos] = useState([{ id: Date.now(), metodo: 'Efectivo Dolar', monto: 0, referencia: '' }]);
 
   const addPago = () => {
     const defaultMetodo = metodosPagoDisponibles.length > 0 ? metodosPagoDisponibles[0].nombre : 'Efectivo Dolar';
@@ -498,7 +468,6 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
   };
 
   // Estado de Extras
-  const [extras, setExtras] = useState<{id: number, descripcion: string, monto: any}[]>([]);
   const addExtra = () => setExtras([...extras, { id: Date.now(), descripcion: 'Lencería', monto: 0 }]);
   const removeExtra = (idToRemove: number) => setExtras(extras.filter(e => e.id !== idToRemove));
   const updateExtra = (id: number, field: string, value: any) => {
@@ -532,7 +501,6 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
   const restanteDolares = Math.max(0, costoTotalDolares - totalPagadoDolares);
 
   // Lógica de Envío
-  const [loading, setLoading] = useState(false);
 
   const resetForm = () => {
     setActivePersona('P1');
@@ -619,8 +587,7 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
     setVoucher(data.voucher_codigo || '');
     if (data.voucher_codigo) {
       // Intentar cargar detalles del voucher si existe
-      fetch(`http://192.168.0.123:8000/api/configuracion/vouchers/${data.voucher_codigo}`)
-        .then(res => res.json())
+      api.getVoucher(data.voucher_codigo)
         .then(vData => {
            if (vData.codigo) setAppliedVoucher(vData);
         })
@@ -699,11 +666,7 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
         codigo_descuento: voucher || null
       };
 
-      await fetch(`http://192.168.0.123:8000/api/habitaciones/${habitacion.id}/estancia`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      await api.updateEstancia(habitacion.id, payload);
       // No alertamos en el guardado automático para no molestar al cerrar
     } catch (err) {
       console.error("Error al actualizar estancia:", err);
@@ -723,84 +686,77 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
     if (!cedulaActual) return;
 
     try {
-      const response = await fetch(`http://192.168.0.123:8000/api/clientes/${tipo}${cedulaActual}`, { cache: 'no-store' });
-      if (response.ok) {
-        const data = await response.json();
+      const data = await api.getCliente(`${tipo}${cedulaActual}`);
         
-        // Convertir la fecha de string a objeto Date si existe sin problemas de timezone
-        let birthDate = null;
-        if (data.fecha_nacimiento) {
-          const dtPart = typeof data.fecha_nacimiento === 'string' ? data.fecha_nacimiento.split('T')[0] : '';
-          const parts = dtPart.split('-');
-          if (parts.length === 3) {
-            birthDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-          } else {
-            birthDate = new Date(data.fecha_nacimiento);
-          }
-          if (isNaN(birthDate.getTime())) birthDate = null;
+      // Convertir la fecha de string a objeto Date si existe sin problemas de timezone
+      let birthDate = null;
+      if (data.fecha_nacimiento) {
+        const dtPart = typeof data.fecha_nacimiento === 'string' ? data.fecha_nacimiento.split('T')[0] : '';
+        const parts = dtPart.split('-');
+        if (parts.length === 3) {
+          birthDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        } else {
+          birthDate = new Date(data.fecha_nacimiento);
         }
-
-        setHuespedes(prev => {
-          const next = {
-            ...prev,
-            [activePersona]: { 
-              ...prev[activePersona], 
-              cedula: data.cedula,
-              tipo_cedula: data.tipo_cedula,
-              nombre: data.nombre,
-              fecha_nacimiento: birthDate,
-              nacionalidad: data.nacionalidad,
-              telefono: data.telefono || '',
-              codigo_telefono: data.codigo_telefono || '+58',
-              profesion: data.profesion || 'Comerciante',
-              observaciones: data.observaciones || '',
-              reputacion: data.reputacion || 'positivo',
-              visitas: data.visitas || 0,
-              estado: data.estado || 'ausente',
-              estado_civil: data.estado_civil || 'Soltero'
-            }
-          };
-          huespedesRef.current = next;
-
-          // Si el cliente tiene dirección, la usamos como procedencia por defecto
-          if (data.direccion) setProcedencia(data.direccion);
-          
-          if (data.reputacion === 'negativo') {
-            setShowReputacionModal(true);
-          }
-          
-          return next;
-        });
-
-        // Buscar datos pasados (pago, procedencia, destino)
-        try {
-          const respExtra = await fetch(`http://192.168.0.123:8000/api/clientes/${tipo}${cedulaActual}/datos-pasados`);
-          if (respExtra.ok) {
-            const dataExtra = await respExtra.json();
-            
-            // 1. Método de Pago (si es el primer pago con monto 0)
-            if (dataExtra.metodo) {
-              setPagos(prevPagos => {
-                if (prevPagos.length === 1 && Number(prevPagos[0].monto) === 0) {
-                  return [{ ...prevPagos[0], metodo: dataExtra.metodo }];
-                }
-                return prevPagos;
-              });
-            }
-
-            // 2. Procedencia y Destino
-            if (dataExtra.procedencia) setProcedencia(dataExtra.procedencia);
-            if (dataExtra.destino) setDestino(dataExtra.destino);
-          }
-        } catch (err) {
-          console.error("Error al obtener datos pasados:", err);
-        }
-      } else {
-        setErrorSearch(true);
-        inputNombreRef.current?.focus();
+        if (isNaN(birthDate.getTime())) birthDate = null;
       }
-    } catch (err) {
+
+      setHuespedes(prev => {
+        const next = {
+          ...prev,
+          [activePersona]: { 
+            ...prev[activePersona], 
+            cedula: data.cedula,
+            tipo_cedula: data.tipo_cedula,
+            nombre: data.nombre,
+            fecha_nacimiento: birthDate,
+            nacionalidad: data.nacionalidad,
+            telefono: data.telefono || '',
+            codigo_telefono: data.codigo_telefono || '+58',
+            profesion: data.profesion || 'Comerciante',
+            observaciones: data.observaciones || '',
+            reputacion: data.reputacion || 'positivo',
+            visitas: data.visitas || 0,
+            estado: data.estado || 'ausente',
+            estado_civil: data.estado_civil || 'Soltero'
+          }
+        };
+        huespedesRef.current = next;
+
+        // Si el cliente tiene dirección, la usamos como procedencia por defecto
+        if (data.direccion) setProcedencia(data.direccion);
+        
+        if (data.reputacion === 'negativo') {
+          setShowReputacionModal(true);
+        }
+        
+        return next;
+      });
+
+      // Buscar datos pasados (pago, procedencia, destino)
+      try {
+        const dataExtra = await api.getClienteDatosPasados(`${tipo}${cedulaActual}`);
+        
+        // 1. Método de Pago (si es el primer pago con monto 0)
+        if (dataExtra.metodo) {
+          setPagos(prevPagos => {
+            if (prevPagos.length === 1 && Number(prevPagos[0].monto) === 0) {
+              return [{ ...prevPagos[0], metodo: dataExtra.metodo }];
+            }
+            return prevPagos;
+          });
+        }
+
+        // 2. Procedencia y Destino
+        if (dataExtra.procedencia) setProcedencia(dataExtra.procedencia);
+        if (dataExtra.destino) setDestino(dataExtra.destino);
+      } catch (err) {
+        console.error("Error al obtener datos pasados:", err);
+      }
+    } catch (err: any) {
       console.error("Error buscando cliente:", err);
+      setErrorSearch(true);
+      inputNombreRef.current?.focus();
     }
   };
 
@@ -855,40 +811,24 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
         usuario_id: currentUser?.id
       };
 
-      const response = await fetch(`http://192.168.0.123:8000/api/habitaciones/${habitacion?.id}/ingresar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      await api.ingresarCliente(habitacion!.id, payload);
+      notifications.show({
+        title: 'Éxito',
+        message: '¡Ingreso registrado con éxito!',
+        color: 'green',
+        icon: <IconCheck />
       });
-
-      if (response.ok) {
-        notifications.show({
-          title: 'Éxito',
-          message: '¡Ingreso registrado con éxito!',
-          color: 'green',
-          icon: <IconCheck />
-        });
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          window.location.reload(); 
-        }
-        onClose();
+      if (onSuccess) {
+        onSuccess();
       } else {
-        const errorData = await response.json();
-        console.error("Error de validación/servidor:", errorData);
-        notifications.show({
-          title: 'Error',
-          message: errorData.detail || 'Ocurrió un problema en el servidor',
-          color: 'red',
-          icon: <IconX />
-        });
+        window.location.reload(); 
       }
-    } catch (err) {
+      onClose();
+    } catch (err: any) {
       console.error("Error de red/ejecución:", err);
       notifications.show({
-        title: 'Error de conexión',
-        message: 'No se pudo contactar con el servidor. Verifique que el backend esté corriendo.',
+        title: 'Error',
+        message: err.message || 'Ocurrió un problema en el servidor',
         color: 'red',
         icon: <IconX />
       });
@@ -976,32 +916,20 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
 
     setLoading(true);
     try {
-      const response = await fetch(`http://192.168.0.123:8000/api/habitaciones/${habitacion.id}/liberar`, {
-        method: 'POST'
-      });
-      if (response.ok) {
-        notifications.show({
-          title: 'Éxito',
-          message: '¡Habitación liberada correctamente!',
-          color: 'green',
-          icon: <IconCheck />
-        });
-        if (onSuccess) onSuccess();
-        else window.location.reload();
-        onClose();
-      } else {
-        const errorData = await response.json();
-        notifications.show({
-          title: 'Error',
-          message: errorData.detail || 'Ocurrió un problema',
-          color: 'red',
-          icon: <IconX />
-        });
-      }
-    } catch (err) {
+      await api.liberarHabitacion(habitacion.id);
       notifications.show({
-        title: 'Error de conexión',
-        message: 'No se pudo contactar con el servidor.',
+        title: 'Éxito',
+        message: '¡Habitación liberada correctamente!',
+        color: 'green',
+        icon: <IconCheck />
+      });
+      if (onSuccess) onSuccess();
+      else window.location.reload();
+      onClose();
+    } catch (err: any) {
+      notifications.show({
+        title: 'Error',
+        message: err.message || 'Ocurrió un problema',
         color: 'red',
         icon: <IconX />
       });
@@ -1014,32 +942,20 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
     if (!habitacion) return;
     setLoading(true);
     try {
-      const response = await fetch(`http://192.168.0.123:8000/api/habitaciones/${habitacion.id}/pasar_a_hospedaje`, {
-        method: 'POST'
-      });
-      if (response.ok) {
-        notifications.show({
-          title: 'Éxito',
-          message: '¡Convertido a hospedaje correctamente!',
-          color: 'grape',
-          icon: <IconCheck />
-        });
-        if (onSuccess) onSuccess();
-        else window.location.reload();
-        onClose();
-      } else {
-        const errorData = await response.json();
-        notifications.show({
-          title: 'Error',
-          message: errorData.detail || 'Ocurrió un problema',
-          color: 'red',
-          icon: <IconX />
-        });
-      }
-    } catch (err) {
+      await api.pasarAHospedaje(habitacion.id);
       notifications.show({
-        title: 'Error de conexión',
-        message: 'No se pudo contactar con el servidor.',
+        title: 'Éxito',
+        message: '¡Convertido a hospedaje correctamente!',
+        color: 'grape',
+        icon: <IconCheck />
+      });
+      if (onSuccess) onSuccess();
+      else window.location.reload();
+      onClose();
+    } catch (err: any) {
+      notifications.show({
+        title: 'Error',
+        message: err.message || 'Ocurrió un problema',
         color: 'red',
         icon: <IconX />
       });
@@ -1052,19 +968,17 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
     if (!camareraId || !habitacion) return;
     setLoadingRetoque(true);
     try {
-      const resp = await fetch(`http://192.168.0.123:8000/api/habitaciones/${habitacion.id}/retoque`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ camarera_id: parseInt(camareraId) })
+      await api.setRetoque(habitacion.id, parseInt(camareraId));
+      notifications.show({ title: 'Éxito', message: 'La habitación ahora está en RETOQUE', color: 'grape', icon: <IconClock /> });
+      if (onSuccess) onSuccess();
+      onClose();
+      setShowRetoqueModal(false);
+    } catch (err: any) {
+      notifications.show({
+        title: 'Error',
+        message: err.message || 'Error al poner en retoque.',
+        color: 'red'
       });
-      if (resp.ok) {
-        notifications.show({ title: 'Éxito', message: 'La habitación ahora está en RETOQUE', color: 'grape', icon: <IconClock /> });
-        if (onSuccess) onSuccess();
-        onClose();
-        setShowRetoqueModal(false);
-      }
-    } catch (err) {
-      console.error(err);
     } finally {
       setLoadingRetoque(false);
     }
@@ -1074,23 +988,21 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
     if (!habitacion) return;
     setLoading(true);
     try {
-      const resp = await fetch(`http://192.168.0.123:8000/api/habitaciones/${habitacion.id}/finalizar_retoque`, {
-        method: 'POST'
+      await api.finalizarRetoque(habitacion.id);
+      notifications.show({ title: 'Éxito', message: 'Retoque finalizado correctamente', color: 'green', icon: <IconCheck /> });
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err: any) {
+      notifications.show({
+        title: 'Error',
+        message: err.message || 'Error al finalizar retoque.',
+        color: 'red'
       });
-      if (resp.ok) {
-        notifications.show({ title: 'Éxito', message: 'Retoque finalizado correctamente', color: 'green', icon: <IconCheck /> });
-        if (onSuccess) onSuccess();
-        onClose();
-      }
-    } catch (err) {
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const [fechaEntrada, setFechaEntrada] = useState<Date>(new Date());
-  const [fechaSalidaCalculada, setFechaSalidaCalculada] = useState<Date | null>(null);
 
   useEffect(() => {
     // Si la fecha de entrada es mayor a "ahora + 10 min", es una reserva

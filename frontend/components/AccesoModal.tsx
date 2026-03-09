@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Modal, Select, MultiSelect, Button, Group, Stack, Text, LoadingOverlay, Box, Tooltip, Avatar } from '@mantine/core';
 import { IconDoorEnter, IconDoorExit, IconCheck, IconAlertCircle, IconUsers } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
+import { api } from '../app/lib/api';
 
 const ROBOTO_FONT = 'Roboto, sans-serif';
 const LABEL_SIZE = '13px';
@@ -51,11 +52,8 @@ export default function AccesoModal({ opened, onClose, tipo }: AccesoModalProps)
   const loadCargosResumen = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://192.168.0.123:8000/api/acceso/cargos-resumen');
-      if (res.ok) {
-        const data = await res.json();
-        setCargosResumen(data);
-      }
+      const data = await api.getCargosResumen();
+      setCargosResumen(data);
     } catch (err) {
       console.error("Error loading cargos-resumen:", err);
     } finally {
@@ -66,15 +64,12 @@ export default function AccesoModal({ opened, onClose, tipo }: AccesoModalProps)
   const loadPersonas = async (cargo: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`http://192.168.0.123:8000/api/acceso/personas/${cargo}`);
-      if (res.ok) {
-        const data = await res.json();
-        setPersonas(prev => {
-          const map = new Map(prev.map(p => [p.cedula, p]));
-          data.forEach((p: Persona) => map.set(p.cedula, p));
-          return Array.from(map.values());
-        });
-      }
+      const data = await api.getPersonasPorCargo(cargo);
+      setPersonas(prev => {
+        const map = new Map(prev.map(p => [p.cedula, p]));
+        data.forEach((p: Persona) => map.set(p.cedula, p));
+        return Array.from(map.values());
+      });
     } catch (err) {
       console.error("Error loading personas:", err);
     } finally {
@@ -92,36 +87,26 @@ export default function AccesoModal({ opened, onClose, tipo }: AccesoModalProps)
 
     setSubmitting(true);
     try {
-      const res = await fetch('http://192.168.0.123:8000/api/acceso/registrar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          personas: personasToRegister,
-          tipo: tipo
-        })
+      const data: any = await api.registrarAcceso({
+        personas: personasToRegister,
+        tipo: tipo
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        const num = data.modificados;
-        notifications.show({
-          title: tipo === 'entrada' ? 'ENTRADA Registrada' : 'SALIDA Registrada',
-          message: `Se registraron exitosamente a ${num} persona(s).`,
-          color: tipo === 'entrada' ? 'rgb(40, 190, 100)' : 'rgb(242, 5, 5)',
-          icon: <IconCheck size={18} />
-        });
-        onClose();
-      } else {
-        const error = await res.json();
-        notifications.show({
-          title: 'Error',
-          message: error.detail || 'Ocurrió un problema en la operación.',
-          color: 'red',
-          icon: <IconAlertCircle size={18} />
-        });
-      }
-    } catch (err) {
-      notifications.show({ title: 'Error de red', message: 'No se pudo conectar con el servidor', color: 'red' });
+      const num = data.modificados;
+      notifications.show({
+        title: tipo === 'entrada' ? 'ENTRADA Registrada' : 'SALIDA Registrada',
+        message: `Se registraron exitosamente a ${num} persona(s).`,
+        color: tipo === 'entrada' ? 'rgb(40, 190, 100)' : 'rgb(242, 5, 5)',
+        icon: <IconCheck size={18} />
+      });
+      onClose();
+    } catch (err: any) {
+      notifications.show({ 
+        title: 'Error', 
+        message: err.message || 'Ocurrió un problema en la operación.', 
+        color: 'red',
+        icon: <IconAlertCircle size={18} />
+      });
     } finally {
       setSubmitting(false);
     }

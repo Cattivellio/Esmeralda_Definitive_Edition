@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Button, Select, Text, Stack, TextInput, Textarea } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
+import { api } from '../app/lib/api';
 
 const ROBOTO_FONT = 'Roboto, sans-serif';
 const LABEL_SIZE = '13px';
@@ -53,31 +54,20 @@ export default function CambioTurnoModal({
 
     setLoading(true);
     try {
-      const response = await fetch('http://192.168.0.123:8000/api/turnos/cambio', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          usuario_entrante: selectedUser,
-          usuario_saliente: currentUser,
-          observaciones: observaciones
-        })
+      await api.realizarCambioTurno({
+        usuario_entrante: selectedUser,
+        usuario_saliente: currentUser,
+        observaciones: observaciones
       });
 
-      if (response.ok) {
-        notifications.show({
-          title: 'Turno Cambiado',
-          message: `El turno ha sido entregado a ${selectedUser}.`,
-          color: 'teal',
-          icon: <IconCheck size={18} />
-        });
-        onSuccess(selectedUser);
-        onClose();
-      } else {
-        const err = await response.json();
-        throw new Error(err.detail || 'No se pudo cambiar el turno.');
-      }
+      notifications.show({
+        title: 'Turno Cambiado',
+        message: `El turno ha sido entregado a ${selectedUser}.`,
+        color: 'teal',
+        icon: <IconCheck size={18} />
+      });
+      onSuccess(selectedUser);
+      onClose();
     } catch (e: any) {
       notifications.show({
         title: 'Error al cambiar turno',

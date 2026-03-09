@@ -1944,7 +1944,7 @@ export default function ConfiguracionSection() {
 
             {!editingUsuario && (
               <Text size="xs" c="dimmed" fs="italic">
-                Nota: La contraseña temporal por defecto será 'password123'.
+                Nota: La contraseña temporal por defecto será &apos;password123&apos;.
               </Text>
             )}
 

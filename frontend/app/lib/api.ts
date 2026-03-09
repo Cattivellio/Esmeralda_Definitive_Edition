@@ -138,4 +138,30 @@ export const api = {
   deleteInventarioItem: (id: number) => request(`/configuracion/inventario/${id}`, { method: 'DELETE' }),
   registrarMovimiento: (data: any) => request(`/configuracion/inventario/movimiento`, { method: 'POST', body: JSON.stringify(data) }),
   getMovimientosInventario: (itemId?: number) => request<any[]>(`/configuracion/inventario/movimientos${itemId ? `?item_id=${itemId}` : ''}`),
+
+  // Acceso Detalle
+  getCargosResumen: () => request<any[]>(`/acceso/cargos-resumen`),
+  getPersonasPorCargo: (cargo: string) => request<Persona[]>(`/acceso/personas/${cargo}`),
+
+  // Habitaciones Adicionales
+  limpiarHabitacion: (id: number, camarera_id: number) => request(`/habitaciones/${id}/limpiar`, { method: 'POST', body: JSON.stringify({ camarera_id }) }),
+  desbloquearHabitacion: (id: number) => request(`/habitaciones/${id}/desbloquear`, { method: 'POST' }),
+  setRetoque: (id: number, camarera_id: number) => request(`/habitaciones/${id}/retoque`, { method: 'POST', body: JSON.stringify({ camarera_id }) }),
+  finalizarRetoque: (id: number) => request(`/habitaciones/${id}/finalizar_retoque`, { method: 'POST' }),
+  liberarHabitacion: (id: number) => request(`/habitaciones/${id}/liberar`, { method: 'POST' }),
+  pasarAHospedaje: (id: number) => request(`/habitaciones/${id}/pasar_a_hospedaje`, { method: 'POST' }),
+
+  // Reservas
+  cancelarReserva: (id: string) => request(`/habitaciones/reservas/${id}/cancelar`, { method: 'POST' }),
+  activarReserva: (id: string) => request(`/habitaciones/reservas/${id}/activar`, { method: 'POST' }),
+
+  // Turnos Adicionales
+  realizarCambioTurno: (data: any) => request(`/turnos/cambio`, { method: 'POST', body: JSON.stringify(data) }),
 };
+
+interface Persona {
+  nombre: string;
+  cedula: string;
+  cargo: string;
+  estado: string;
+}

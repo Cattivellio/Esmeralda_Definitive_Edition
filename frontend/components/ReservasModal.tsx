@@ -5,6 +5,7 @@ import { IconCheck, IconX, IconCalendar } from '@tabler/icons-react';
 import DataTable from './DataTable';
 import { useState, useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
+import { api } from '../app/lib/api';
 import dayjs from 'dayjs';
 
 interface ReservasModalProps {
@@ -20,10 +21,8 @@ export default function ReservasModal({ opened, onClose, onSuccess }: ReservasMo
   const fetchReservas = async () => {
     setLoading(true);
     try {
-      const resp = await fetch('http://192.168.0.123:8000/api/habitaciones/reservas/proximas');
-      if (resp.ok) {
-        setData(await resp.json());
-      }
+      const respData = await api.getReservasProximas();
+      setData(respData);
     } catch (err) {
       console.error(err);
     } finally {
@@ -38,12 +37,10 @@ export default function ReservasModal({ opened, onClose, onSuccess }: ReservasMo
   const handleCancelar = async (id: string) => {
     if (!confirm('¿Está seguro de cancelar esta reserva?')) return;
     try {
-      const resp = await fetch(`http://192.168.0.123:8000/api/habitaciones/reservas/${id}/cancelar`, { method: 'POST' });
-      if (resp.ok) {
-        notifications.show({ title: 'Éxito', message: 'Reserva cancelada', color: 'red' });
-        fetchReservas();
-        if (onSuccess) onSuccess();
-      }
+      await api.cancelarReserva(id);
+      notifications.show({ title: 'Éxito', message: 'Reserva cancelada', color: 'red' });
+      fetchReservas();
+      if (onSuccess) onSuccess();
     } catch (err) {
       console.error(err);
     }
@@ -51,17 +48,12 @@ export default function ReservasModal({ opened, onClose, onSuccess }: ReservasMo
 
   const handleActivar = async (id: string) => {
     try {
-      const resp = await fetch(`http://192.168.0.123:8000/api/habitaciones/reservas/${id}/activar`, { method: 'POST' });
-      const resData = await resp.json();
-      if (resp.ok) {
-        notifications.show({ title: 'Éxito', message: 'Reserva activada correctamente', color: 'green' });
-        fetchReservas();
-        if (onSuccess) onSuccess();
-      } else {
-        notifications.show({ title: 'Error', message: resData.detail || 'No se pudo activar', color: 'red' });
-      }
-    } catch (err) {
-      console.error(err);
+      await api.activarReserva(id);
+      notifications.show({ title: 'Éxito', message: 'Reserva activada correctamente', color: 'green' });
+      fetchReservas();
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      notifications.show({ title: 'Error', message: err.message || 'No se pudo activar', color: 'red' });
     }
   };
 
