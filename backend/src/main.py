@@ -1,12 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 from .infrastructure.database import engine, Base, SessionLocal
 from .infrastructure import models
 from .infrastructure.models import ConfiguracionDB, User
-from src.api import habitaciones, clientes, configuracion, acceso, turnos, novedades
+from src.api import habitaciones, clientes, configuracion, acceso, turnos, novedades, tesoreria
 
 # Crear tablas en base de datos si no existen
 Base.metadata.create_all(bind=engine)
+
+# Crear carpeta de subidas
+if not os.path.exists("uploads/facturas"):
+    os.makedirs("uploads/facturas")
 
 app = FastAPI(title="Esmeralda Backend API")
 
@@ -42,6 +48,14 @@ app.include_router(configuracion.router)
 app.include_router(acceso.router)
 app.include_router(turnos.router)
 app.include_router(novedades.router)
+app.include_router(tesoreria.router)
+
+# Servir estáticos (facturas y perfiles)
+app.mount("/facturas", StaticFiles(directory="uploads/facturas"), name="facturas")
+
+if not os.path.exists("static/perfiles"):
+    os.makedirs("static/perfiles")
+app.mount("/static/perfiles", StaticFiles(directory="static/perfiles"), name="perfiles")
 
 @app.get("/")
 def read_root():

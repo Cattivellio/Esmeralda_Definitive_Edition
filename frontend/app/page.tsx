@@ -14,7 +14,9 @@ import AccesoModal from '../components/AccesoModal';
 import CambioTurnoModal from '../components/CambioTurnoModal';
 import NovedadesModal from '../components/NovedadesModal';
 import ReservasModal from '../components/ReservasModal';
+import { api } from './lib/api';
 import { Habitacion } from '../types';
+import { IconCalculator } from '@tabler/icons-react';
 
 const ROBOTO_FONT = 'Roboto, sans-serif';
 const POPPINS_FONT = 'Poppins, sans-serif';
@@ -102,15 +104,11 @@ export default function Home() {
     if (hab.estado_actual !== 'Libre') {
       document.body.style.cursor = 'wait';
       try {
-        const response = await fetch(`http://192.168.0.123:8000/api/habitaciones/${hab.id}/estancia-activa`, { cache: 'no-store' });
-        if (response.ok) {
-          const data = await response.json();
-          setSelectedHabitacionData({ hab, details: data });
-        } else {
-          setSelectedHabitacionData({ hab, details: null });
-        }
+        const data = await api.getEstanciaActiva(hab.id);
+        setSelectedHabitacionData({ hab, details: data });
       } catch (err) {
         console.error("Error al cargar estancia activa:", err);
+        setSelectedHabitacionData({ hab, details: null });
         document.body.style.cursor = 'default';
       }
     } else {
@@ -136,11 +134,7 @@ export default function Home() {
       document.body.style.cursor = 'wait';
     }
     
-    fetch('http://192.168.0.123:8000/api/habitaciones')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-        return res.json();
-      })
+    api.getHabitaciones()
       .then((data) => {
         setHabitaciones(data);
         setLoading(false);
@@ -158,24 +152,18 @@ export default function Home() {
         document.body.style.cursor = 'default';
       });
 
-    fetch('http://192.168.0.123:8000/api/habitaciones/reservas/proximas')
-      .then(res => res.json())
+    api.getReservasProximas()
       .then(data => setNumReservas(data.length))
       .catch(console.error);
   };
 
   const loadSettingsAndUsers = async () => {
     try {
-      const resBcv = await fetch('http://192.168.0.123:8000/api/configuracion/settings/bcv');
-      if (resBcv.ok) {
-        const data = await resBcv.json();
-        setBcv(parseFloat(data.valor) || 0);
-      }
+      const dataBcv = await api.getConfig('bcv');
+      setBcv(parseFloat(dataBcv.valor) || 0);
 
-      const resUsers = await fetch('http://192.168.0.123:8000/api/configuracion/usuarios');
-      if (resUsers.ok) setUsers(await resUsers.json());
-
-      // La carga automática del turno fue removida para mantener "Usuario" y "cargo" por defecto.
+      const dataUsers = await api.getUsuarios();
+      setUsers(dataUsers);
     } catch (err) {
       console.error("Error loading settings/users/turno:", err);
     }
@@ -184,31 +172,18 @@ export default function Home() {
   const handleRefreshBcv = async () => {
     setRefreshing(true);
     try {
-      const response = await fetch('http://192.168.0.123:8000/api/configuracion/refresh-bcv', {
-        method: 'POST',
+      const data = await api.refreshBcv();
+      setBcv(data.price);
+      notifications.show({
+        title: 'Tasa Actualizada',
+        message: `El dólar se actualizó a ${data.price} Bs`,
+        color: 'teal',
+        icon: <IconCheck size={18} />,
       });
-      if (response.ok) {
-        const data = await response.json();
-        setBcv(parseFloat(data.price));
-        notifications.show({
-          title: 'Tasa Actualizada',
-          message: `El dólar se actualizó a ${data.price} Bs`,
-          color: 'teal',
-          icon: <IconCheck size={18} />,
-        });
-      } else {
-        const error = await response.json();
-        notifications.show({
-          title: 'Error al actualizar',
-          message: error.detail || 'No se pudo obtener la tasa desde el API.',
-          color: 'red',
-          icon: <IconAlertCircle size={18} />,
-        });
-      }
-    } catch (err) {
+    } catch (err: any) {
       notifications.show({
         title: 'Error de conexión',
-        message: 'No se pudo contactar con el servidor.',
+        message: err.message || 'No se pudo contactar con el servidor.',
         color: 'red',
         icon: <IconAlertCircle size={18} />,
       });
@@ -442,11 +417,7 @@ export default function Home() {
         onChange={(v) => {
            const newVal = parseFloat(v.toString()) || 45.62;
            setBcv(newVal);
-           fetch('http://192.168.0.123:8000/api/configuracion/settings/bcv', {
-             method: 'PUT',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ valor: newVal.toString() })
-           });
+           api.updateConfig('bcv', newVal.toString());
         }}
         decimalScale={2}
         fixedDecimalScale
@@ -510,13 +481,7 @@ export default function Home() {
             loadHabitaciones();
 
             // Tomar el monto del input y guardarlo como referencia oficial
-            const responseBcv = await fetch('http://192.168.0.123:8000/api/configuracion/settings/bcv', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ valor: bcv.toString() })
-            });
-
-            if (!responseBcv.ok) throw new Error('Error al guardar tasa');
+            await api.updateConfig('bcv', bcv.toString());
 
             notifications.show({ 
               title: 'Sistema Sincronizado', 
@@ -604,11 +569,11 @@ export default function Home() {
                   <Box style={{ height: '100vh' }} />
                 ) : viewMode === 'croquis' ? (
                   <Box style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <CroquisGrid habitaciones={habitaciones} onRoomClick={handleRoomClick} />
+                    <CroquisGrid habitaciones={habitaciones} onRoomClick={handleRoomClick} bcv={bcv} />
                   </Box>
                 ) : (
                   <ScrollArea h="100%" type="scroll" offsetScrollbars>
-                    <ModernGrid habitaciones={habitaciones} onRoomClick={handleRoomClick} />
+                    <ModernGrid habitaciones={habitaciones} onRoomClick={handleRoomClick} bcv={bcv} />
                   </ScrollArea>
                 )}
             </Box>
@@ -823,9 +788,15 @@ export default function Home() {
               <ActionIcon size={50} radius="xl" variant="filled" color="dark" style={{ border: '1px solid #333', background: 'rgba(26, 26, 26, 0.9)', backdropFilter: 'blur(8px)' }}>
                 <IconUser size={26} />
               </ActionIcon>
-              <ActionIcon size={50} radius="xl" variant="filled" color="dark" style={{ border: '1px solid #333', background: 'rgba(26, 26, 26, 0.9)', backdropFilter: 'blur(8px)' }}>
-                <IconCalendar size={26} />
-              </ActionIcon>
+              <Tooltip label="Calculadora Rápida" position="top" withArrow>
+                <ActionIcon 
+                  size={50} radius="xl" variant="filled" color="dark" 
+                  style={{ border: '1px solid #333', background: 'rgba(26, 26, 26, 0.9)', backdropFilter: 'blur(8px)' }}
+                  onClick={() => window.dispatchEvent(new CustomEvent('toggle-calculator'))}
+                >
+                  <IconCalculator size={26} />
+                </ActionIcon>
+              </Tooltip>
               <ActionIcon 
                 size={50} radius="xl" variant="filled" color="dark" 
                 style={{ border: '1px solid #333', background: 'rgba(26, 26, 26, 0.9)', backdropFilter: 'blur(8px)' }}

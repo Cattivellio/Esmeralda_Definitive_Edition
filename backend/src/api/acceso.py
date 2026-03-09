@@ -132,12 +132,72 @@ def registrar_acceso_batch(request: AccesoBatchRequest, db: Session = Depends(ge
         db.add(historial)
         
         resultados.append(registro.nombre)
+
+        # Sincronizar con la tabla de usuarios si existe el usuario
+        db_user = db.query(User).filter(User.username == req.cedula).first()
+        if db_user:
+            db_user.is_present = (request.tipo == "entrada")
         
     db.commit()
     return {
         "status": "success",
         "modificados": len(resultados),
         "nombres": resultados
+    }
+
+class NFCAccesoRequest(BaseModel):
+    nfc_code: str
+    tipo: str # "entrada" o "salida"
+
+@router.post("/validar-nfc")
+def validar_nfc_acceso(request: NFCAccesoRequest, db: Session = Depends(get_db)):
+    # Buscar usuario por código NFC
+    user = db.query(User).filter(User.nfc_code == request.nfc_code).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Código NFC no reconocido")
+    
+    # Obtener o crear registro en registro_persona_hotel
+    registro = db.query(RegistroPersonaHotel).filter(RegistroPersonaHotel.cedula == user.username).first()
+    if not registro:
+        registro = RegistroPersonaHotel(
+            nombre=user.nombre or user.username,
+            cedula=user.username,
+            cargo=user.rol,
+            estado="ausente"
+        )
+        db.add(registro)
+        db.commit()
+        db.refresh(registro)
+
+    # Validar cambio de estado
+    if request.tipo == "entrada":
+        if registro.estado == "presente":
+             return {"status": "already_in", "nombre": registro.nombre}
+        registro.estado = "presente"
+        registro.ultima_entrada = datetime.utcnow()
+        user.is_present = True
+    else:
+        if registro.estado == "ausente":
+             return {"status": "already_out", "nombre": registro.nombre}
+        registro.estado = "ausente"
+        registro.ultima_salida = datetime.utcnow()
+        user.is_present = False
+
+    # Log history
+    historial = HistorialAcceso(
+        cedula=user.username,
+        nombre=registro.nombre,
+        tipo=request.tipo,
+        timestamp=datetime.utcnow()
+    )
+    db.add(historial)
+    db.commit()
+
+    return {
+        "status": "success",
+        "nombre": registro.nombre,
+        "cargo": registro.cargo,
+        "tipo": request.tipo
     }
 
 @router.get("/presentes")

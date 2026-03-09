@@ -1,12 +1,14 @@
-import requests
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File as FastAPIFile, UploadFile
+from fastapi.responses import FileResponse
 from typing import List, Optional
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 from pydantic import BaseModel
 from datetime import datetime
 from ..infrastructure.database import get_db
 from ..infrastructure.models import (
-    ConfiguracionDB, MetodoPagoDB, HabitacionDB, User, InspeccionDB
+    ConfiguracionDB, MetodoPagoDB, HabitacionDB, User, InspeccionDB, LogDB,
+    InventarioDB, MovimientoInventarioDB
 )
 
 router = APIRouter(prefix="/api/configuracion", tags=["configuracion"])
@@ -36,6 +38,12 @@ class UsuarioSchema(BaseModel):
     username: str # Usaremos username como cédula/identificador por ahora
     nombre: Optional[str] = None
     rol: str # Cargo/Rol
+    horario: Optional[str] = None
+    is_present: bool = False
+    fecha_nacimiento: Optional[datetime] = None
+    fecha_ingreso: Optional[datetime] = None
+    foto_url: Optional[str] = None
+    nfc_code: Optional[str] = None
 
 class UsuarioCreate(UsuarioSchema):
     password: str
@@ -60,9 +68,34 @@ class InspeccionSchema(BaseModel):
     observaciones: Optional[str] = None
     foto_url: Optional[str] = None
 
+class InventarioSchema(BaseModel):
+    id: Optional[int] = None
+    nombre: str
+    descripcion: Optional[str] = None
+    categoria: str
+    stock_actual: int = 0
+    stock_minimo: int = 5
+    unidad_medida: str = "unidades"
+    costo_unitario: float = 0.0
+    ultima_actualizacion: Optional[datetime] = None
+
+class InventarioCreate(InventarioSchema):
+    pass
+
+class MovimientoSchema(BaseModel):
+    item_id: int
+    usuario_id: int
+    cantidad: int
+    tipo: str # ENTRADA, SALIDA
+    motivo: Optional[str] = None
+
 # --- ENDPOINTS ---
 
 # 1. Configuraciones Globales
+@router.get("/all-settings")
+def get_all_settings(db: Session = Depends(get_db)):
+    return db.query(ConfiguracionDB).all()
+
 @router.get("/settings/{clave}")
 def get_setting(clave: str, db: Session = Depends(get_db)):
     setting = db.query(ConfiguracionDB).filter(ConfiguracionDB.clave == clave).first()
@@ -127,7 +160,13 @@ def get_metodos_pago(db: Session = Depends(get_db)):
 
 @router.post("/metodos_pago")
 def create_metodo_pago(metodo: MetodoPagoSchema, db: Session = Depends(get_db)):
-    nuevo = MetodoPagoDB(nombre=metodo.nombre, moneda=metodo.moneda, color=metodo.color, activo=metodo.activo)
+    nuevo = MetodoPagoDB(
+        nombre=metodo.nombre, 
+        moneda=metodo.moneda, 
+        color=metodo.color, 
+        activo=metodo.activo,
+        saldo_inicial=metodo.saldo_inicial
+    )
     db.add(nuevo)
     db.commit()
     return {"status": "success"}
@@ -141,6 +180,7 @@ def update_metodo_pago(id: int, metodo: MetodoPagoSchema, db: Session = Depends(
     db_metodo.moneda = metodo.moneda
     db_metodo.color = metodo.color
     db_metodo.activo = metodo.activo
+    db_metodo.saldo_inicial = metodo.saldo_inicial
     db.commit()
     return {"status": "success"}
 
@@ -176,7 +216,18 @@ def get_usuarios(db: Session = Depends(get_db)):
 
 @router.post("/usuarios")
 def create_usuario(user: UsuarioCreate, db: Session = Depends(get_db)):
-    nuevo = User(username=user.username, nombre=user.nombre, password_hash=user.password, rol=user.rol)
+    nuevo = User(
+        username=user.username, 
+        nombre=user.nombre, 
+        password_hash=user.password, 
+        rol=user.rol,
+        horario=user.horario,
+        is_present=user.is_present,
+        fecha_nacimiento=user.fecha_nacimiento,
+        fecha_ingreso=user.fecha_ingreso,
+        foto_url=user.foto_url,
+        nfc_code=user.nfc_code
+    )
     # Nota: Aquí deberíamos hashear la password, pero por simplicidad en este entorno legacy seguimos el patrón actual
     db.add(nuevo)
     db.commit()
@@ -190,6 +241,12 @@ def update_usuario(id: int, user: UsuarioSchema, db: Session = Depends(get_db)):
     db_user.username = user.username
     db_user.nombre = user.nombre
     db_user.rol = user.rol
+    db_user.horario = user.horario
+    db_user.is_present = user.is_present
+    db_user.fecha_nacimiento = user.fecha_nacimiento
+    db_user.fecha_ingreso = user.fecha_ingreso
+    db_user.foto_url = user.foto_url
+    db_user.nfc_code = user.nfc_code
     db.commit()
     return {"status": "success"}
 
@@ -263,3 +320,138 @@ def create_inspeccion(req: InspeccionSchema, db: Session = Depends(get_db)):
     db.add(nueva)
     db.commit()
     return {"status": "success"}
+
+# --- FOTO DE PERFIL ---
+from fastapi import UploadFile, File as FastAPIFile
+import os
+import shutil
+import uuid
+
+@router.post("/usuarios/upload-foto")
+async def upload_user_photo(file: UploadFile = FastAPIFile(...)):
+    if not os.path.exists("static/perfiles"):
+        os.makedirs("static/perfiles")
+    
+    # Extraer extension
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4()}{ext}"
+    file_path = f"static/perfiles/{filename}"
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    return {"url": f"/{file_path}"}
+
+# --- LOGS Y BACKUP ---
+@router.get("/logs")
+def get_logs(limit: int = 100, db: Session = Depends(get_db)):
+    logs = db.query(LogDB).order_by(desc(LogDB.timestamp)).limit(limit).all()
+    res = []
+    for l in logs:
+        usuario = db.query(User).filter(User.id == l.usuario_id).first()
+        res.append({
+            "id": l.id,
+            "usuario": usuario.nombre if usuario else "Sistema",
+            "accion": l.accion,
+            "descripcion": l.descripcion,
+            "fecha": l.timestamp
+        })
+    return res
+
+@router.get("/backup/download")
+def download_backup():
+    path = "esmeralda.db"
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Base de datos no encontrada")
+    return FileResponse(
+        path, 
+        filename=f"backup_esmeralda_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
+        media_type="application/x-sqlite3"
+    )
+
+# --- INVENTARIO ---
+@router.get("/inventario", response_model=List[InventarioSchema])
+def get_inventario(db: Session = Depends(get_db)):
+    return db.query(InventarioDB).all()
+
+@router.post("/inventario")
+def create_inventario(item: InventarioCreate, db: Session = Depends(get_db)):
+    nuevo = InventarioDB(
+        nombre=item.nombre,
+        descripcion=item.descripcion,
+        categoria=item.categoria,
+        stock_actual=item.stock_actual,
+        stock_minimo=item.stock_minimo,
+        unidad_medida=item.unidad_medida,
+        costo_unitario=item.costo_unitario
+    )
+    db.add(nuevo)
+    db.commit()
+    return {"status": "success"}
+
+@router.put("/inventario/{id}")
+def update_item_inventario(id: int, item: InventarioSchema, db: Session = Depends(get_db)):
+    db_item = db.query(InventarioDB).filter(InventarioDB.id == id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+    db_item.nombre = item.nombre
+    db_item.descripcion = item.descripcion
+    db_item.categoria = item.categoria
+    db_item.stock_minimo = item.stock_minimo
+    db_item.unidad_medida = item.unidad_medida
+    db_item.costo_unitario = item.costo_unitario
+    db.commit()
+    return {"status": "success"}
+
+@router.delete("/inventario/{id}")
+def delete_item_inventario(id: int, db: Session = Depends(get_db)):
+    db_item = db.query(InventarioDB).filter(InventarioDB.id == id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+    db.delete(db_item)
+    db.commit()
+    return {"status": "success"}
+
+@router.post("/inventario/movimiento")
+def registrar_movimiento(mov: MovimientoSchema, db: Session = Depends(get_db)):
+    item = db.query(InventarioDB).filter(InventarioDB.id == mov.item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+    
+    # Actualizar stock
+    if mov.tipo == 'ENTRADA':
+        item.stock_actual += mov.cantidad
+    elif mov.tipo == 'SALIDA':
+        item.stock_actual -= mov.cantidad
+    
+    # Registrar movimiento
+    nuevo_mov = MovimientoInventarioDB(
+        item_id=mov.item_id,
+        usuario_id=mov.usuario_id,
+        cantidad=mov.cantidad,
+        tipo=mov.tipo,
+        motivo=mov.motivo
+    )
+    db.add(nuevo_mov)
+    db.commit()
+    return {"status": "success", "nuevo_stock": item.stock_actual}
+
+@router.get("/inventario/movimientos")
+def get_movimientos(item_id: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(MovimientoInventarioDB)
+    if item_id:
+        query = query.filter(MovimientoInventarioDB.item_id == item_id)
+    movs = query.order_by(desc(MovimientoInventarioDB.fecha)).limit(50).all()
+    
+    res = []
+    for m in movs:
+        res.append({
+            "id": m.id,
+            "item_nombre": m.item.nombre,
+            "usuario_nombre": m.usuario.nombre or m.usuario.username,
+            "cantidad": m.cantidad,
+            "tipo": m.tipo,
+            "motivo": m.motivo,
+            "fecha": m.fecha
+        })
+    return res

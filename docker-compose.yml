@@ -1,0 +1,51 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: esmeralda-mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: esmeralda-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/esmeralda.db:/app/esmeralda.db
+      - ./backend/uploads:/app/uploads
+    environment:
+      - DATABASE_URL=sqlite:///./esmeralda.db
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://${RPI_IP:-localhost}:8000
+    container_name: esmeralda-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://${RPI_IP:-localhost}:8000
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

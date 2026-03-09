@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Holiday Suite Kiosko</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app" class="container">
+        <!-- Background -->
+        <div class="bg-image"></div>
+        <div class="bg-overlay"></div>
+
+        <!-- 1. HOME SCREEN -->
+        <section id="home-screen" class="screen active">
+            <header class="home-header">
+                <h2 class="welcome-text">Bienvenido</h2>
+            </header>
+            
+            <div class="home-groups">
+                <!-- Group 1: Check-in -->
+                <div class="home-group" id="group-checkin">
+                    <h3 class="group-title">Check-in</h3>
+                    <div class="group-options">
+                        <!-- Card 1: Deseo una Habitación -->
+                        <div class="kiosk-card filled-blue" id="btn-walkin" data-key="1">
+                            <div class="card-indicator">1</div>
+                            <div class="card-icon">
+                                <img src="assets/icons/home.svg" class="icon-normal" width="60" height="60" alt="Habitación">
+                                <img src="assets/icons/home_filled.svg" class="icon-filled" width="60" height="60" alt="Habitación">
+                            </div>
+                            <span class="card-label">Deseo una Habitación</span>
+                        </div>
+                        
+                        <!-- Card 2: Tengo una Reservación -->
+                        <div class="kiosk-card filled-white" id="btn-reservation" data-key="2">
+                            <div class="card-indicator">2</div>
+                            <div class="card-icon">
+                                <img src="assets/icons/bookmark.svg" class="icon-normal" width="60" height="60" alt="Reservación">
+                                <img src="assets/icons/bookmark_filled.svg" class="icon-filled" width="60" height="60" alt="Reservación">
+                            </div>
+                            <span class="card-label">Tengo una Reservación</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group 2: Ingreso -->
+                <div class="home-group" id="group-ingreso">
+                    <h3 class="group-title">Acceso</h3>
+                    <div class="group-options">
+                        <!-- Card 3: Estoy hospedado -->
+                        <div class="kiosk-card filled-blue" id="btn-staying" data-key="3">
+                            <div class="card-indicator">3</div>
+                            <div class="card-icon">
+                                <img src="assets/icons/key.svg" class="icon-normal" width="60" height="60" alt="Acceso">
+                                <img src="assets/icons/key_filled.svg" class="icon-filled" width="60" height="60" alt="Acceso">
+                            </div>
+                            <span class="card-label">Estoy hospedado</span>
+                        </div>
+
+                        <!-- Card 4: Acceso Personal -->
+                        <div class="kiosk-card filled-white" id="btn-staff" data-key="4">
+                            <div class="card-indicator">4</div>
+                            <div class="card-icon">
+                                <img src="assets/icons/shield.svg" class="icon-normal" width="60" height="60" alt="Staff">
+                                <img src="assets/icons/shield_filled.svg" class="icon-filled" width="60" height="60" alt="Staff">
+                            </div>
+                            <span class="card-label">Acceso Personal</span>
+                        </div>
+
+                        <!-- Card 5: Checkout (Salida Mode Only) -->
+                        <div class="kiosk-card filled-blue hidden-entrada" id="btn-checkout" data-key="5">
+                            <div class="card-indicator">5</div>
+                            <div class="card-icon">
+                                <img src="assets/icons/key.svg" class="icon-normal" width="60" height="60" alt="Checkout">
+                                <img src="assets/icons/key_filled.svg" class="icon-filled" width="60" height="60" alt="Checkout">
+                            </div>
+                            <span class="card-label">Checkout / Salida</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="kiosk-btn primary-action hidden" id="btn-home-confirm">
+                PULSE # PARA CONFIRMAR
+            </button>
+
+            <div class="footer-help">
+                <span><img src="assets/icons/bell.svg" width="20" height="20" class="footer-icon"> ASISTENCIA</span>
+                <span><img src="assets/icons/arrow_back.svg" width="20" height="20" class="footer-icon"> VOLVER</span>
+            </div>
+        </section>
+
+        <!-- 1.a ROOM SELECTION SCREEN -->
+        <section id="room-selection-screen" class="screen hidden">
+            <h2 class="screen-title" style="margin-bottom: 1.5rem;">Seleccione su Habitación</h2>
+            
+            <div class="room-list-container">
+                <!-- Room items will be injected here by JS -->
+            </div>
+
+            <div class="footer-help">
+                <span><span class="key-pill">-</span> ASISTENCIA</span>
+                <span><span class="key-pill">+</span> VOLVER</span>
+            </div>
+        </section>
+
+        <!-- 1.b ROOM DETAIL SCREEN -->
+        <section id="room-detail-screen" class="screen hidden">
+            
+            <div class="room-detail-container">
+                <div class="room-video-container vertical">
+                    <!-- 9:16 Vertical Video Placeholder -->
+                    <div class="video-placeholder-large">
+                        <span class="play-icon">▶</span>
+                        <span id="detail-video-text">Video de la Habitación</span>
+                    </div>
+
+                    <!-- Bottom Info Bar (White Background) -->
+                    <div class="video-info-bar">
+                        <h3 id="detail-room-name" class="info-room-name">Nombre Habitación</h3>
+                        <div class="info-top-row">
+                            <div class="info-group">
+                                <img src="assets/icons/capacidad.svg" width="24" height="24" class="info-icon">
+                                <span id="detail-capacity" class="info-val">2 Personas</span>
+                            </div>
+                            <div class="info-group">
+                                <span id="detail-price" class="info-val price-val">$60</span>
+                            </div>
+                        </div>
+                        <div class="info-inventory">
+                            <p id="detail-inventory">Aire Acondicionado • Wi-Fi de alta velocidad • TV 4K • Baño Privado • Amenities Exclusivos • Minibar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-actions">
+                <button class="kiosk-btn primary-action" id="btn-room-confirm">
+                    CONFIRMAR #
+                </button>
+                <p class="back-hint">
+                    Presione <span class="key-pill">*</span> para volver al listado
+                </p>
+            </div>
+
+            <div class="footer-help">
+                <span><span class="key-pill">-</span> ASISTENCIA</span>
+                <span><span class="key-pill">+</span> VOLVER</span>
+            </div>
+        </section>
+
+        <!-- 2. RESERVATION CODE SCREEN -->
+        <section id="reservation-screen" class="screen hidden">
+            <h2 class="screen-title">Ingrese Código de Reservación</h2>
+            
+            <div class="code-display" id="reservation-code-display">
+                <div class="code-digit"></div>
+                <div class="code-digit"></div>
+                <div class="code-digit"></div>
+                <div class="code-digit"></div>
+                <div class="code-digit"></div>
+            </div>
+
+            <div class="feedback-message hidden" id="reservation-feedback">
+                <!-- Icons/Text for success/error injected here -->
+            </div>
+
+            <div class="keyboard-instruction">
+                <p>Use el teclado numérico</p>
+                <div class="key-legend">
+                    <span><span class="key-icon">#</span> CONFIRMAR</span>
+                    <span><span class="key-icon">*</span> BORRAR</span>
+                </div>
+            </div>
+            
+
+            <div class="footer-help">
+                <span><span class="key-pill">-</span> ASISTENCIA</span>
+                <span><span class="key-pill">+</span> VOLVER</span>
+            </div>
+        </section>
+
+        <!-- 2.b ROOM CODE SCREEN (Staying) -->
+        <section id="room-code-screen" class="screen hidden">
+            <h2 class="screen-title">Ingrese Código de Habitación</h2>
+            
+            <div class="code-display" id="room-code-display">
+                <div class="code-digit"></div>
+                <div class="code-digit"></div>
+                <div class="code-digit"></div>
+                <div class="code-digit"></div>
+                <div class="code-digit"></div>
+            </div>
+
+            <div class="feedback-message hidden" id="room-code-feedback">
+                <!-- Icons/Text for success/error injected here -->
+            </div>
+
+            <div class="keyboard-instruction">
+                <p>Use el teclado numérico</p>
+                <div class="key-legend">
+                    <span><span class="key-icon">#</span> CONFIRMAR</span>
+                    <span><span class="key-icon">*</span> BORRAR</span>
+                </div>
+            </div>
+
+            <div class="footer-help">
+                <span><span class="key-pill">-</span> ASISTENCIA</span>
+                <span><span class="key-pill">+</span> VOLVER</span>
+            </div>
+        </section>
+
+        <!-- 2.c STAFF AUTH SCREEN (RFID) -->
+        <section id="staff-auth-screen" class="screen hidden">
+            <h2 class="screen-title" style="margin-bottom: 1rem;">Acceso de Personal</h2>
+            
+            <div class="staff-list-main">
+                <div id="scanned-staff-list" class="staff-list">
+                    <!-- Default Placeholder: RFID Illustration -->
+                    <div id="rfid-placeholder" class="rfid-placeholder-content">
+                        <div class="rfid-illustration">
+                            <div class="rfid-scanner">
+                                <div class="rfid-wave"></div>
+                                <div class="rfid-wave"></div>
+                                <div class="rfid-wave"></div>
+                                <img src="assets/icons/shield.svg" width="80" height="80" class="rfid-icon icon-amber">
+                            </div>
+                        </div>
+                        <div class="rfid-text">
+                            <p class="main-instruction">Aproxime su tarjeta al lector</p>
+                            <p class="sub-instruction">El sistema registrará su ingreso automáticamente</p>
+                        </div>
+                    </div>
+                    <!-- Staff names will be added here -->
+                </div>
+            </div>
+
+            <div class="staff-actions-bottom">
+                <button class="kiosk-btn primary-action hidden" id="btn-staff-continue">
+                    FINALIZAR REGISTRO #
+                </button>
+            </div>
+
+            <div class="footer-help">
+                <span><span class="key-pill">-</span> ASISTENCIA</span>
+                <span><span class="key-pill">+</span> VOLVER</span>
+            </div>
+        </section>
+
+        <!-- 2.d STAFF WELCOME SCREEN -->
+        <section id="staff-welcome-screen" class="screen hidden">
+            <div class="welcome-staff-content">
+                <div class="welcome-icon-glow">
+                    <img src="assets/icons/shield_filled.svg" width="100" height="100" class="staff-icon-large icon-amber">
+                </div>
+                <h2 class="screen-title">¡Bienvenidos!</h2>
+                <div id="staff-welcome-names" class="welcome-names-list">
+                    <!-- Final list of names -->
+                </div>
+                <div id="staff-quote-container" class="staff-quote-box">
+                    <!-- Quote will be injected here -->
+                </div>
+                <p class="welcome-message">Su jornada ha sido registrada exitosamente.</p>
+            </div>
+
+            <button class="kiosk-btn primary-action" id="btn-staff-finish">
+                CERRAR SESIÓN #
+            </button>
+        </section>
+
+        <!-- 2.e STAFF WAITING APPROVAL SCREEN -->
+        <section id="staff-waiting-screen" class="screen hidden">
+            <div class="waiting-message-container">
+                <div class="waiting-illustration">
+                    <img src="assets/icons/shield.svg" class="hotel-logo-icon icon-amber" style="width: 120px;">
+                </div>
+                <div class="elegant-text">
+                    <h2 class="main-instruction" style="color: var(--accent-gold);">Acceso en Revisión</h2>
+                    <p class="sub-instruction">Su solicitud de ingreso ha sido enviada a Recepción.<br>Por favor, espere la confirmación del personal.</p>
+                </div>
+                <div class="loader-subtle"></div>
+                <p class="waiting-footer">Gracias por su paciencia.</p>
+            </div>
+            <button class="kiosk-btn primary-action" id="btn-staff-waiting-back">
+                VOLVER AL INICIO #
+            </button>
+        </section>
+
+        <!-- 3. SCANNER SCREEN -->
+        <section id="scanner-screen" class="screen hidden">
+            <header class="scanner-header">
+                <h2>Pose su Cédula de Identidad sobre el Escáner</h2>
+            </header>
+
+            <div class="scanner-viewport">
+                <!-- Placeholder for Video -->
+                <div class="video-placeholder">
+                    <span>video de ejemplo</span>
+                </div>
+            </div>
+
+            <button class="kiosk-btn primary-action" id="btn-scan-continue">
+                CONTINUAR #
+            </button>
+            
+            <div class="footer-help">
+                <span><span class="key-pill">-</span> ASISTENCIA</span>
+                <span><span class="key-pill">+</span> VOLVER</span>
+            </div>
+        </section>
+
+        <!-- 3.b PAYMENT SELECTION SCREEN -->
+        <section id="payment-selection-screen" class="screen hidden">
+            <h2 class="screen-title">Seleccione su Modalidad de Pago</h2>
+            
+            <div class="payment-selection-container">
+                <div class="payment-mode-card auto" id="mode-auto">
+                    <div class="mode-badge">1</div>
+                    <div class="mode-icon">⚡</div>
+                    <div class="mode-info">
+                        <h3>Gestión Automática</h3>
+                        <p>Pago Móvil o Transferencia con confirmación inmediata</p>
+                    </div>
+                </div>
+
+                <div class="payment-mode-card manual" id="mode-manual">
+                    <div class="mode-badge">2</div>
+                    <div class="mode-icon">🤝</div>
+                    <div class="mode-info">
+                        <h3>Asistencia Personalizada</h3>
+                        <p>Punto de Venta o Efectivo gestionado por nuestro personal</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-help">
+                <span><span class="key-pill">-</span> ASISTENCIA</span>
+                <span><span class="key-pill">+</span> VOLVER</span>
+            </div>
+        </section>
+
+        <!-- 3.c AUTOMATIC PAYMENT INPUT SCREEN -->
+        <section id="payment-auto-screen" class="screen hidden">
+            
+            <div class="payment-auto-container">
+                <div class="payment-card-paper">
+                    <div class="bank-details-section">
+                        <div class="bank-row"><span>Banco:</span> <strong>Banesco (0134)</strong></div>
+                        <div class="bank-row"><span>RIF:</span> <strong>J-12345678-0</strong></div>
+                        <div class="bank-row"><span>Teléfono:</span> <strong>0412-5551234</strong></div>
+                        <div class="bank-row"><span>Cuenta:</span> <strong>0134 0000 0000 0000 0000</strong></div>
+                    </div>
+
+                    <div class="qr-code-integrated">
+                        <div class="qr-placeholder">
+                            <span>ESPACIO PARA QR</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reference-input-section">
+                    <p class="input-label">Ingrese los últimos 5 dígitos de su referencia</p>
+                    <div class="code-display centered" id="payment-ref-display">
+                        <div class="code-digit"></div>
+                        <div class="code-digit"></div>
+                        <div class="code-digit"></div>
+                        <div class="code-digit"></div>
+                        <div class="code-digit"></div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="kiosk-btn primary-action" id="btn-confirm-auto-payment">
+                CONFIRMAR PAGO #
+            </button>
+
+            <div class="footer-help">
+                <span><span class="key-pill">*</span> VOLVER</span>
+                <span><img src="assets/icons/arrow_back.svg" width="20" height="20" class="footer-icon"> VOLVER</span>
+            </div>
+        </section>
+
+        <!-- 3.d MANUAL PAYMENT WAITING SCREEN -->
+        <section id="payment-manual-screen" class="screen hidden">
+            <div class="waiting-message-container poppins-font">
+                <div class="waiting-illustration">
+                    <img src="assets/icons/logo.svg" class="hotel-logo-icon" alt="Logo Hotel">
+                </div>
+                
+                <div class="transaction-summary">
+                    <div id="waiting-room-name" class="room-display">---</div>
+                    <div id="waiting-price" class="price-display">---</div>
+                </div>
+
+                <div class="elegant-text">
+                    <p class="main-instruction">Diríjase al gabinete para terminar su transacción</p>
+                    <p class="sub-instruction">Nuestro equipo le espera para entregarle su llave física y completar el proceso.</p>
+                </div>
+
+                <div class="loader-subtle"></div>
+                <p class="waiting-footer">Gracias por su amable espera.</p>
+            </div>
+
+            <div class="footer-help">
+                <span><span class="key-pill">-</span> ASISTENCIA</span>
+                <span><span class="key-pill">+</span> VOLVER</span>
+            </div>
+        </section>
+
+        <!-- 4. TERMS SCREEN -->
+        <section id="terms-screen" class="screen hidden">
+            <div class="a4-page">
+                <header class="page-header">
+                    <h3>REGLAMENTO INTERNO</h3>
+                    <p>Holiday Suite C.A</p>
+                </header>
+                
+                <div class="page-body">
+                    <p><strong>1. Uso de Instalaciones:</strong> Donec in laoreet sem, eu auctor arcu. Ut eleifend purus vitae ante molestie feugiat. Aenean euismod magna ac iaculis finibus. Duis lacus libero, auctor non placerat ut, efficitur in felis. Cras vulputate aliquam ex, vel rutrum dui scelerisque in.</p>
+                    <p><strong>2. Comportamiento:</strong> Integer eget mauris ac tellus rutrum rhoncus. In vitae mi in elit sollicitudin lacinia. Aenean finibus facilisis lacinia. In nec malesuada lacus. Praesent rutrum risus nec erat blandit dapibus. Maecenas laoreet ultrices tincidunt.</p>
+                    <p><strong>3. Responsabilidades:</strong> Nulla ullamcorper varius elit, a tincidunt sapien aliquet condimentum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum consectetur suscipit facilisis. Duis vitae sagittis mauris.</p>
+                </div>
+            </div>
+
+            <button class="kiosk-btn primary-action" id="btn-terms-accept">
+                ACEPTAR #
+            </button>
+
+            <p class="terms-caveat">
+                al aceptar estas deacuerdo con las normativas del hotel Holiday Suite C.A
+            </p>
+            <div class="footer-help">
+                <span><span class="key-pill">-</span> ASISTENCIA</span>
+                <span><span class="key-pill">+</span> VOLVER</span>
+            </div>
+        </section>
+
+        <!-- 5. FINAL SCREEN -->
+        <section id="final-screen" class="screen hidden">
+            <div class="success-content">
+                <div class="success-icon">
+                    <img src="assets/icons/logo.svg" class="hotel-logo-icon" alt="Logo Hotel">
+                </div>
+                <h2>¡Proceso Exitoso!</h2>
+                <p>Su habitación ha sido asignada.<br>¡Disfrute su estadía!</p>
+            </div>
+            
+            <button class="kiosk-btn primary-action" id="btn-finish">
+                VOLVER AL INICIO #
+            </button>
+            <div class="footer-help">
+                <span><span class="key-pill">-</span> ASISTENCIA</span>
+                <span><span class="key-pill">+</span> VOLVER</span>
+            </div>
+        </section>
+
+        <!-- Inactivity Popup -->
+        <div id="inactivity-popup" class="popup-overlay hidden">
+            <div class="popup-content glass-morphism">
+                <div class="popup-icon-warning">⚠️</div>
+                <h2 class="popup-title">¿Sigues ahí?</h2>
+                <p class="popup-message">Tu sesión está por expirar debido a inactividad. Serás redirigido al inicio en breve.</p>
+                
+                <div class="popup-countdown-container">
+                    <span id="popup-countdown">120</span> segundos
+                </div>
+
+                <button class="kiosk-btn primary-action" id="btn-stay-here">
+                    SIGO AQUÍ #
+                </button>
+            </div>
+        </div>
+
+        <!-- Confetti Canvas -->
+        <canvas id="confetti-canvas"></canvas>
+    </div>
+
+    <script src="assets/js/confetti.browser.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

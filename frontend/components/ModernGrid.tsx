@@ -7,9 +7,10 @@ import HabitacionCard from './HabitacionCard';
 interface ModernGridProps {
   habitaciones: Habitacion[];
   onRoomClick: (hab: Habitacion) => void;
+  bcv: number;
 }
 
-export default function ModernGrid({ habitaciones, onRoomClick }: ModernGridProps) {
+export default function ModernGrid({ habitaciones, onRoomClick, bcv }: ModernGridProps) {
   // Ordenar lógicamente las habitaciones por número para esta vista en lista/cuadrángulo
   // (Así no aparecen desordenadas por el archivo de la bd si las jalamos en el orden que vienen)
   const habitacionesOrdenadas = [...habitaciones].sort((a, b) => {
@@ -29,7 +30,7 @@ export default function ModernGrid({ habitaciones, onRoomClick }: ModernGridProp
       }}
     >
       {habitacionesOrdenadas.map(hab => (
-        <HabitacionCard key={hab.id} habitacion={hab} disablePosition={true} onClick={onRoomClick} />
+        <HabitacionCard key={hab.id} habitacion={hab} disablePosition={true} onClick={onRoomClick} bcv={bcv} />
       ))}
     </Box>
   );

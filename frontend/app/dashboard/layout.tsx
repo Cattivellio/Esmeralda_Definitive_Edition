@@ -31,7 +31,8 @@ import {
   IconArrowLeft,
   IconClock,
   IconChevronDown,
-  IconChevronUp
+  IconChevronUp,
+  IconWallet
 } from '@tabler/icons-react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import dayjs from 'dayjs';

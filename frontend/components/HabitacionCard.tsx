@@ -1,4 +1,4 @@
-import { Badge, Box, Text, Tooltip, Paper } from '@mantine/core';
+import { Badge, Box, Text, Tooltip, Paper, Group } from '@mantine/core';
 import { Habitacion } from '../types';
 import classes from './HabitacionCard.module.css';
 
@@ -6,6 +6,7 @@ interface HabitacionCardProps {
   habitacion: Habitacion;
   disablePosition?: boolean;
   onClick?: (hab: Habitacion) => void;
+  bcv?: number;
 }
 
 // Mapa de colores exactos como en la imagen
@@ -19,14 +20,35 @@ const estadoColores: Record<string, string> = {
   Reservada: 'linear-gradient(135deg, rgb(20, 171, 169) 0%, rgb(10, 60, 130) 100%)',
 };
 
-export default function HabitacionCard({ habitacion, disablePosition = false, onClick }: HabitacionCardProps) {
+export default function HabitacionCard({ habitacion, disablePosition = false, onClick, bcv = 0 }: HabitacionCardProps) {
   const isVencida = habitacion.hora_salida && new Date(habitacion.hora_salida) < new Date();
   
+  const tooltipLabel = (
+    <Box p={4}>
+      <Text fw={700} size="sm" mb={4} style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: 2 }}>
+        {habitacion.tipo.toUpperCase()} - {habitacion.estado_actual}
+      </Text>
+      
+      <Group gap="xs" wrap="nowrap" mb={2}>
+        <Box style={{ width: 10, height: 10, borderRadius: '50%', background: estadoColores.Parcial }} />
+        <Text size="xs" fw={600}>${habitacion.precio_parcial.toFixed(2)}</Text>
+        <Text size="xs" c="dimmed">({(habitacion.precio_parcial * bcv).toLocaleString('es-VE')} Bs)</Text>
+      </Group>
+
+      <Group gap="xs" wrap="nowrap">
+        <Box style={{ width: 10, height: 10, borderRadius: '50%', background: estadoColores.Hospedaje }} />
+        <Text size="xs" fw={600}>${habitacion.precio_hospedaje.toFixed(2)}</Text>
+        <Text size="xs" c="dimmed">({(habitacion.precio_hospedaje * bcv).toLocaleString('es-VE')} Bs)</Text>
+      </Group>
+    </Box>
+  );
+
   return (
     <Tooltip 
-      label={`${habitacion.tipo.toUpperCase()} - ${habitacion.estado_actual}`} 
+      label={tooltipLabel} 
       position="top" 
       withArrow
+      multiline
       transitionProps={{ transition: 'pop', duration: 200 }}
     >
       <Paper

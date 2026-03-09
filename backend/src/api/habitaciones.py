@@ -6,7 +6,7 @@ from ..infrastructure.database import get_db
 from ..infrastructure.models import (
     HabitacionDB, ClienteDB, EstanciaDB, EstanciaHabitacion, 
     PagoDB, MetodoPagoDB, IngresoExtraDB, EstadoHabitacion, 
-    EstadoEstancia, EstanciaHuesped, VoucherDB, RegistroPersonaHotel, HistorialAcceso, User, LogDB
+    EstadoEstancia, EstanciaHuesped, VoucherDB, RegistroPersonaHotel, HistorialAcceso, User, LogDB, TransaccionDB
 )
 from .schemas import (
     IngresoRequest, EstanciaDetalleResponse, CambiarHabitacionRequest, 
@@ -223,6 +223,22 @@ def ingresar_cliente(id: int, request: IngresoRequest, db: Session = Depends(get
                 referencia=p.referencia
             )
             db.add(pago_db)
+            db.flush()
+
+            # Registrar en Tesorería
+            trans = TransaccionDB(
+                tipo='Ingreso',
+                monto=p.monto,
+                moneda=metodo.moneda,
+                metodo_pago_id=metodo.id,
+                descripcion=f"Pago Estancia - Hab {habitacion.numero}",
+                justificacion=f"Cliente: {huespedes_db[0].nombre}",
+                fecha=datetime.utcnow(),
+                usuario_id=request.usuario_id,
+                pago_id=pago_db.id,
+                referencia=p.referencia
+            )
+            db.add(trans)
 
     # 8. Registrar Extras
     for e in request.extras:
@@ -232,6 +248,25 @@ def ingresar_cliente(id: int, request: IngresoRequest, db: Session = Depends(get
             monto=e.monto
         )
         db.add(extra_db)
+        db.flush()
+
+        # Los extras usualmente se pagan en el primer método de la estancia
+        metodo_extra = db.query(MetodoPagoDB).filter(MetodoPagoDB.nombre == request.pagos[0].metodo).first() if request.pagos else None
+        if not metodo_extra:
+             metodo_extra = db.query(MetodoPagoDB).filter(MetodoPagoDB.moneda == "USD").first()
+        
+        if metodo_extra:
+             trans_extra = TransaccionDB(
+                tipo='Ingreso',
+                monto=e.monto,
+                moneda=metodo_extra.moneda,
+                metodo_pago_id=metodo_extra.id,
+                descripcion=f"Extra: {e.descripcion} - Hab {habitacion.numero}",
+                fecha=datetime.utcnow(),
+                usuario_id=request.usuario_id,
+                extra_id=extra_db.id
+            )
+             db.add(trans_extra)
 
     # 9. Actualizar Habitación (Solo si es ingreso inmediato)
     if es_inmediato:
@@ -443,18 +478,61 @@ def actualizar_estancia(id: int, request: IngresoRequest, db: Session = Depends(
 
     db.commit()
 
-    # 4. Sincronizar Pagos (Simple: Borrar y Recrear para esta estancia en este ejemplo de flujo rápido)
-    # En producción se debería usar IDs para evitar pérdida de timestamps originales
+    # 4. Sincronizar Pagos
+    # Primero eliminamos transacciones de tesorería vinculadas a estos pagos
+    pagos_ids = [p.id for p in db.query(PagoDB).filter(PagoDB.estancia_id == estancia.id).all()]
+    if pagos_ids:
+        db.query(TransaccionDB).filter(TransaccionDB.pago_id.in_(pagos_ids)).delete(synchronize_session=False)
+    
     db.query(PagoDB).filter(PagoDB.estancia_id == estancia.id).delete()
     for p in request.pagos:
         metodo = db.query(MetodoPagoDB).filter(MetodoPagoDB.nombre == p.metodo).first()
         if metodo:
-            db.add(PagoDB(estancia_id=estancia.id, metodo_pago_id=metodo.id, monto=p.monto, referencia=p.referencia))
+            pago_db = PagoDB(estancia_id=estancia.id, metodo_pago_id=metodo.id, monto=p.monto, referencia=p.referencia)
+            db.add(pago_db)
+            db.flush()
+
+            # Registrar en Tesorería
+            trans = TransaccionDB(
+                tipo='Ingreso',
+                monto=p.monto,
+                moneda=metodo.moneda,
+                metodo_pago_id=metodo.id,
+                descripcion=f"Pago Estancia (Act) - Hab {habitacion.numero}",
+                justificacion=f"Cliente: {estancia.cliente_principal_id}",
+                fecha=datetime.utcnow(),
+                usuario_id=request.usuario_id,
+                pago_id=pago_db.id,
+                referencia=p.referencia
+            )
+            db.add(trans)
 
     # 5. Sincronizar Extras
+    extras_ids = [e.id for e in db.query(IngresoExtraDB).filter(IngresoExtraDB.estancia_id == estancia.id).all()]
+    if extras_ids:
+        db.query(TransaccionDB).filter(TransaccionDB.extra_id.in_(extras_ids)).delete(synchronize_session=False)
+
     db.query(IngresoExtraDB).filter(IngresoExtraDB.estancia_id == estancia.id).delete()
     for e in request.extras:
-        db.add(IngresoExtraDB(estancia_id=estancia.id, descripcion=e.descripcion, monto=e.monto))
+        extra_db = IngresoExtraDB(estancia_id=estancia.id, descripcion=e.descripcion, monto=e.monto)
+        db.add(extra_db)
+        db.flush()
+
+        metodo_extra = db.query(MetodoPagoDB).filter(MetodoPagoDB.nombre == request.pagos[0].metodo).first() if request.pagos else None
+        if not metodo_extra:
+             metodo_extra = db.query(MetodoPagoDB).filter(MetodoPagoDB.moneda == "USD").first()
+
+        if metodo_extra:
+             db.add(TransaccionDB(
+                tipo='Ingreso',
+                monto=e.monto,
+                moneda=metodo_extra.moneda,
+                metodo_pago_id=metodo_extra.id,
+                descripcion=f"Extra (Act): {e.descripcion} - Hab {habitacion.numero}",
+                fecha=datetime.utcnow(),
+                usuario_id=request.usuario_id,
+                extra_id=extra_db.id
+            ))
 
     db.commit()
     return {"status": "success", "message": "Datos de estancia actualizados correctamente"}

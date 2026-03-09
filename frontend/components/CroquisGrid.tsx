@@ -7,9 +7,10 @@ import HabitacionCard from './HabitacionCard';
 interface CroquisGridProps {
   habitaciones: Habitacion[];
   onRoomClick: (hab: Habitacion) => void;
+  bcv: number;
 }
 
-export default function CroquisGrid({ habitaciones, onRoomClick }: CroquisGridProps) {
+export default function CroquisGrid({ habitaciones, onRoomClick, bcv }: CroquisGridProps) {
   return (
     <Box 
       style={{
@@ -26,7 +27,7 @@ export default function CroquisGrid({ habitaciones, onRoomClick }: CroquisGridPr
       }}
     >
       {habitaciones.map(hab => (
-        <HabitacionCard key={hab.id} habitacion={hab} onClick={onRoomClick} />
+        <HabitacionCard key={hab.id} habitacion={hab} onClick={onRoomClick} bcv={bcv} />
       ))}
     </Box>
   );

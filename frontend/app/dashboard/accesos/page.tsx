@@ -3,13 +3,14 @@
 import { 
   Box, Title, Text, Badge, Group, ActionIcon, Image, Modal, Stack, Tooltip, Table, Loader, Center, Card, Divider
 } from '@mantine/core';
+import { Suspense } from 'react';
 import { Carousel } from '@mantine/carousel';
 import { useDisclosure } from '@mantine/hooks';
 import { 
-  IconEye, IconTrash, IconDoorEnter, IconDoorExit, IconChevronRight, IconChevronLeft, IconPhoto
+  IconEye, IconTrash, IconDoorEnter, IconDoorExit, IconChevronRight, IconChevronLeft, IconPhoto, IconPlus, IconSearch, IconArrowLeft
 } from '@tabler/icons-react';
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { DashboardTable } from '../components/DashboardTable';
 import { api } from '../../lib/api';
 
@@ -45,7 +46,7 @@ function RowCarousel({ images, onZoom, fullWidth }: { images: string[], onZoom: 
       >
         {images.map((img, i) => (
           <Carousel.Slide key={i}>
-            <Image src={img} fallbackSrc="https://placehold.co/160x90/222/555?text=SIN+FOTO" fit="cover" h="100%" style={{ cursor: 'pointer' }} onClick={() => onZoom(img)} />
+            <Image src={img} alt={`Captura de acceso ${i + 1}`} fallbackSrc="https://placehold.co/160x90/222/555?text=SIN+FOTO" fit="cover" h="100%" style={{ cursor: 'pointer' }} onClick={() => onZoom(img)} />
           </Carousel.Slide>
         ))}
       </Carousel>
@@ -58,7 +59,8 @@ function RowCarousel({ images, onZoom, fullWidth }: { images: string[], onZoom: 
   );
 }
 
-export default function AccesosSection() {
+function AccesosContent() {
+  const router = useRouter();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
   const [loading, setLoading] = useState(false);
@@ -98,23 +100,43 @@ export default function AccesosSection() {
       const start = searchParams.get('start') || undefined;
       const end = searchParams.get('end') || undefined;
       
-      const response = await api.getAccesos(s, start, end, currentSkip, LIMIT);
+      const [response, shifts] = await Promise.all([
+        api.getAccesos(s, start, end, currentSkip, LIMIT),
+        currentSkip === 0 ? api.getTurnos(s, start, end) : Promise.resolve([])
+      ]);
+
       const mapped = response.map(item => ({
         id: item.id,
         tipo: 'acceso',
         sujeto: item.nombre,
         rol: item.cedula,
         fecha: formatDate24(item.timestamp),
-        fotos: [], // No photos in mock, keeping it for the requested style
+        timestamp: item.timestamp,
+        fotos: [], 
         porton: item.tipo,
         registrado_por: 'Sistema',
         observaciones: '-'
       }));
 
+      const turnoMapped = shifts.map(s => ({
+        id: `turno-${s.id}`,
+        tipo: 'turno',
+        timestamp: s.inicio,
+        fin_nombre: s.worker_out,
+        inicio_nombre: s.worker,
+        hora: formatDate24(s.inicio)
+      }));
+
+      const combined = [...mapped, ...turnoMapped].sort((a,b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
       if (currentSkip === 0) {
-        setData(mapped);
+        setData(combined);
       } else {
-        setData(prev => [...prev, ...mapped]);
+        setData(prev => [...prev, ...mapped].sort((a,b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        ));
       }
 
       if (mapped.length < LIMIT) {
@@ -235,10 +257,21 @@ export default function AccesosSection() {
   return (
     <Box>
       <Stack gap="xl">
-        <Box pb="md" mb="xl">
-          <Title order={2} c="white" style={{ fontFamily: 'Poppins, sans-serif' }}>Registro de Accesos (Portón)</Title>
-          <Text size="sm" c="dimmed">Monitoreo de entradas y salidas con captura fotográfica automática.</Text>
-        </Box>
+        <Group align="flex-start" gap="lg" mb="xl">
+          <ActionIcon 
+            variant="light" 
+            color="teal" 
+            size="xl" 
+            onClick={() => router.push('/dashboard/resumen')}
+            style={{ marginTop: 5 }}
+          >
+            <IconArrowLeft size={24} />
+          </ActionIcon>
+          <Box>
+            <Title order={2} c="white" style={{ fontFamily: 'Poppins, sans-serif' }}>Registro de Accesos (Portón)</Title>
+            <Text size="sm" c="dimmed">Monitoreo de entradas y salidas con captura fotográfica automática.</Text>
+          </Box>
+        </Group>
 
         {loading ? (
           <Center h={400}>
@@ -264,7 +297,7 @@ export default function AccesosSection() {
         styles={{ content: { backgroundColor: '#141414', color: 'white' }, header: { backgroundColor: '#1e1e1e', borderBottom: '1px solid #2a2a2a' } }}>
         {selectedImage ? (
           <Stack>
-            <Image src={selectedImage} radius="md" fallbackSrc="https://placehold.co/640x360/222/555?text=SIN+FOTO" />
+            <Image src={selectedImage} alt="Captura de acceso ampliada" radius="md" fallbackSrc="https://placehold.co/640x360/222/555?text=SIN+FOTO" />
             <Group justify="space-between"><Text size="xs" c="dimmed">ID: ACC-2026-XQW - Cámara Portón Principal</Text><ActionIcon variant="light" color="red"><IconTrash size={18} /></ActionIcon></Group>
           </Stack>
         ) : (
@@ -274,5 +307,13 @@ export default function AccesosSection() {
         )}
       </Modal>
     </Box>
+  );
+}
+
+export default function AccesosSection() {
+  return (
+    <Suspense fallback={<Center h={400}><Loader color="teal" size="lg" type="bars" /></Center>}>
+      <AccesosContent />
+    </Suspense>
   );
 }

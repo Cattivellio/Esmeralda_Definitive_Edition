@@ -4,14 +4,16 @@ import {
   Box, Title, Text, Badge, Group, Stack, ActionIcon, Tooltip, Table, Loader, Center, Card, Divider, Button
 } from '@mantine/core';
 import { 
-  IconAlertCircle, IconInfoCircle, IconCheck, IconTrash, IconTools
+  IconAlertCircle, IconTools, IconInfoCircle, IconCheck, IconTrash, IconPlus, IconSearch, IconArrowLeft
 } from '@tabler/icons-react';
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { DashboardTable } from '../components/DashboardTable';
 import { api } from '../../lib/api';
 
-export default function NovedadesSection() {
+
+function NovedadesContent() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -49,12 +51,31 @@ export default function NovedadesSection() {
       const start = searchParams.get('start') || undefined;
       const end = searchParams.get('end') || undefined;
       
-      const response = await api.getNovedades(s, start, end, currentSkip, LIMIT);
+      const [response, shifts] = await Promise.all([
+        api.getNovedades(s, start, end, currentSkip, LIMIT),
+        currentSkip === 0 ? api.getTurnos(s, start, end) : Promise.resolve([])
+      ]);
       
+      const mapped = response.map(item => ({ ...item, timestamp: item.fecha }));
+      const turnoMapped = shifts.map(s => ({
+        id: `turno-${s.id}`,
+        tipo: 'turno',
+        timestamp: s.inicio,
+        fin_nombre: s.worker_out,
+        inicio_nombre: s.worker,
+        hora: formatDate24(s.inicio)
+      }));
+
+      const combined = [...mapped, ...turnoMapped].sort((a,b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
       if (currentSkip === 0) {
-        setData(response);
+        setData(combined);
       } else {
-        setData(prev => [...prev, ...response]);
+        setData(prev => [...prev, ...mapped].sort((a,b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        ));
       }
 
       if (response.length < LIMIT) {
@@ -229,10 +250,21 @@ export default function NovedadesSection() {
   return (
     <Box>
       <Stack gap="xl">
-        <Box pb="md" mb="xl">
-          <Title order={2} c="white" style={{ fontFamily: 'Poppins, sans-serif' }}>Novedades y Averías</Title>
-          <Text size="sm" c="dimmed">Registro de incidencias, reportes técnicos y novedades operativas del hotel.</Text>
-        </Box>
+        <Group align="flex-start" gap="lg" mb="xl">
+          <ActionIcon 
+            variant="light" 
+            color="teal" 
+            size="xl" 
+            onClick={() => router.push('/dashboard/resumen')}
+            style={{ marginTop: 5 }}
+          >
+            <IconArrowLeft size={24} />
+          </ActionIcon>
+          <Box>
+            <Title order={2} c="white" style={{ fontFamily: 'Poppins, sans-serif' }}>Novedades y Averías</Title>
+            <Text size="sm" c="dimmed">Registro de incidencias, reportes técnicos y novedades operativas del hotel.</Text>
+          </Box>
+        </Group>
 
         {loading ? (
           <Center h={400}>
@@ -254,5 +286,13 @@ export default function NovedadesSection() {
         )}
       </Stack>
     </Box>
+  );
+}
+
+export default function NovedadesSection() {
+  return (
+    <Suspense fallback={<Center h={400}><Loader color="teal" size="lg" type="bars" /></Center>}>
+      <NovedadesContent />
+    </Suspense>
   );
 }

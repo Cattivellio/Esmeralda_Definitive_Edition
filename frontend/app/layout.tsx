@@ -12,6 +12,7 @@ import {
 } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { theme } from "../theme";
+import GlobalCalculator from "../components/GlobalCalculator";
 
 const poppins = Poppins({
   weight: ['400', '500', '600', '700', '900'],
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: any }) {
       <body style={{ margin: 0, padding: 0 }}>
         <MantineProvider theme={theme} defaultColorScheme="dark" forceColorScheme="dark">
           <Notifications position="bottom-center" />
+          <GlobalCalculator />
           {children}
           <script
             dangerouslySetInnerHTML={{

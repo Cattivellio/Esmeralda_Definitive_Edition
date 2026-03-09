@@ -67,6 +67,12 @@ class User(Base):
     nombre = Column(String(100))
     password_hash = Column(String(255), nullable=False)
     rol = Column(String(50), default="Recepcionista") # Administrador, Recepcionista, etc
+    horario = Column(String(100), nullable=True) # Ej. 08:00 - 16:00
+    is_present = Column(Boolean, default=False)
+    fecha_nacimiento = Column(DateTime, nullable=True)
+    fecha_ingreso = Column(DateTime, nullable=True)
+    foto_url = Column(String(255), nullable=True)
+    nfc_code = Column(String(50), unique=True, nullable=True)
 
 class HabitacionDB(Base):
     __tablename__ = "habitaciones"
@@ -150,6 +156,33 @@ class MetodoPagoDB(Base):
     moneda = Column(String(10), default="USD") # USD, VES
     color = Column(String(7), default="#ffffff")
     activo = Column(Boolean, default=True)
+    saldo_inicial = Column(Float, default=0.0)
+
+    transacciones = relationship("TransaccionDB", foreign_keys="TransaccionDB.metodo_pago_id", back_populates="metodo_pago")
+
+class TransaccionDB(Base):
+    __tablename__ = "transacciones"
+    id = Column(Integer, primary_key=True)
+    tipo = Column(String(20), nullable=False) # Ingreso, Egreso, Transferencia
+    monto = Column(Float, nullable=False)
+    moneda = Column(String(10), default="USD")
+    metodo_pago_id = Column(Integer, ForeignKey("metodos_pago.id"), nullable=False)
+    metodo_pago_destino_id = Column(Integer, ForeignKey("metodos_pago.id"), nullable=True) # Solo para transferencia
+    descripcion = Column(String(255))
+    justificacion = Column(Text, nullable=True)
+    fecha = Column(DateTime, default=datetime.utcnow)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    pago_id = Column(Integer, ForeignKey("pagos.id"), nullable=True)
+    extra_id = Column(Integer, ForeignKey("ingresos_extras.id"), nullable=True)
+    referencia = Column(String(100), nullable=True)
+    categoria = Column(String(50), nullable=True) # Solo para Egresos (Servicios, Suministros, etc.)
+    factura_url = Column(String(255), nullable=True) # Ruta a la foto de la factura
+
+    metodo_pago = relationship("MetodoPagoDB", foreign_keys=[metodo_pago_id], back_populates="transacciones")
+    metodo_pago_destino = relationship("MetodoPagoDB", foreign_keys=[metodo_pago_destino_id])
+    usuario = relationship("User")
+    pago = relationship("PagoDB")
+    extra = relationship("IngresoExtraDB")
 
 class VoucherDB(Base):
     __tablename__ = "vouchers"
@@ -236,21 +269,43 @@ class NovedadDB(Base):
 
 class InspeccionDB(Base):
     __tablename__ = "inspecciones"
-    id = Column(Integer, primary_key=True)
-    habitacion_id = Column(Integer, ForeignKey("habitaciones.id"), nullable=False)
-    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    habitacion_id = Column(Integer, ForeignKey("habitaciones.id"))
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"))
     fecha = Column(DateTime, default=datetime.utcnow)
-    
-    # Items (Bien/Mal)
-    telefono = Column(String(10), default="Bien")
-    televisor = Column(String(10), default="Bien")
-    aire_acondicionado = Column(String(10), default="Bien")
-    luces = Column(String(10), default="Bien")
-    cama = Column(String(10), default="Bien")
-    ducha_agua = Column(String(10), default="Bien")
-    
+    telefono = Column(String(10))
+    televisor = Column(String(10))
+    aire_acondicionado = Column(String(10))
+    luces = Column(String(10))
+    cama = Column(String(10))
+    ducha_agua = Column(String(10))
     observaciones = Column(Text, nullable=True)
     foto_url = Column(String(255), nullable=True)
-    
+
     habitacion = relationship("HabitacionDB")
+    usuario = relationship("User")
+
+class InventarioDB(Base):
+    __tablename__ = "inventario"
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(100), nullable=False)
+    descripcion = Column(Text, nullable=True)
+    categoria = Column(String(50), nullable=False) # Amenities, Limpieza, Mantenimiento, etc.
+    stock_actual = Column(Integer, default=0)
+    stock_minimo = Column(Integer, default=5)
+    unidad_medida = Column(String(20), default="unidades")
+    costo_unitario = Column(Float, default=0.0)
+    ultima_actualizacion = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class MovimientoInventarioDB(Base):
+    __tablename__ = "movimientos_inventario"
+    id = Column(Integer, primary_key=True, index=True)
+    item_id = Column(Integer, ForeignKey("inventario.id"))
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"))
+    cantidad = Column(Integer, nullable=False)
+    tipo = Column(String(20), nullable=False) # ENTRADA, SALIDA, AJUSTE
+    motivo = Column(String(255), nullable=True)
+    fecha = Column(DateTime, default=datetime.utcnow)
+
+    item = relationship("InventarioDB")
     usuario = relationship("User")

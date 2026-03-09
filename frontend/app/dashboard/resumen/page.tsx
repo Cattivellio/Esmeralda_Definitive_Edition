@@ -10,10 +10,10 @@ import {
   IconArrowRight, IconClock, IconPointFilled, IconInfoCircle, IconUser
 } from '@tabler/icons-react';
 import { useSearchParams } from 'next/navigation';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { api } from '../../lib/api';
 
-export default function ResumenSection() {
+function ResumenContent() {
   const searchParams = useSearchParams();
   const [opened, { open, close }] = useDisclosure(false);
   const [selectedTurno, setSelectedTurno] = useState<any>(null);
@@ -83,7 +83,6 @@ export default function ResumenSection() {
     for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
       const fullDate = new Date(year, month, i);
       // Find turn(s) for this day
-      // item.inicio is ISO string: 2026-03-08T...
       const turnsForDay = turnosData.filter(t => {
         const tDate = new Date(t.inicio);
         return tDate.getDate() === i && tDate.getMonth() === month && tDate.getFullYear() === year;
@@ -324,5 +323,13 @@ export default function ResumenSection() {
         }
       `}</style>
     </Box>
+  );
+}
+
+export default function ResumenSection() {
+  return (
+    <Suspense fallback={<Center h={400}><Loader color="teal" size="lg" type="bars" /></Center>}>
+      <ResumenContent />
+    </Suspense>
   );
 }

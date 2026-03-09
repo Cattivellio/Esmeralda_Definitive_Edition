@@ -33,6 +33,8 @@ class MetodoPagoSchema(BaseModel):
     moneda: str
     color: str = "#ffffff"
     activo: bool = True
+    saldo_inicial: float = 0.0
+    saldo_actual: Optional[float] = 0.0
 
     class Config:
         from_attributes = True
@@ -104,3 +106,31 @@ class NovedadSchema(BaseModel):
 
     class Config:
         from_attributes = True
+
+class TransaccionSchema(BaseModel):
+    id: Optional[int] = None
+    tipo: str # Ingreso, Egreso, Transferencia
+    monto: float
+    moneda: str
+    metodo_pago_id: int
+    metodo_pago_destino_id: Optional[int] = None
+    descripcion: Optional[str] = None
+    justificacion: Optional[str] = None
+    fecha: Optional[datetime] = None
+    usuario_id: Optional[int] = None
+    pago_id: Optional[int] = None
+    extra_id: Optional[int] = None
+    referencia: Optional[str] = None
+    categoria: Optional[str] = None
+    factura_url: Optional[str] = None
+    metodo_pago_nombre: Optional[str] = None
+    metodo_pago_destino_nombre: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class TransferenciaRequest(BaseModel):
+    metodo_pago_origen_id: int
+    metodo_pago_destino_id: int
+    monto: float
+    descripcion: Optional[str] = None

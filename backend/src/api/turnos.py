@@ -77,6 +77,7 @@ def get_historial_turnos(limit: int = 100, s: Optional[str] = None, start: Optio
             "id": s_obj.id,
             "dia": s_obj.fecha_inicio.day,
             "worker": s_obj.usuario_entrante.nombre if s_obj.usuario_entrante else "Desconocido",
+            "worker_out": s_obj.usuario_saliente.nombre if s_obj.usuario_saliente else "Inicial",
             "inicio": s_obj.fecha_inicio.isoformat(),
             "fin": s_obj.fecha_fin.isoformat() if s_obj.fecha_fin else "Actual",
             "isActual": s_obj.fecha_fin is None,

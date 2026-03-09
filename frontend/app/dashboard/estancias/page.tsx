@@ -3,13 +3,14 @@
 import { 
   Box, Title, Text, Badge, Group, ActionIcon, Image, Modal, Stack, Tooltip, Table, Loader, Center, Card, Divider
 } from '@mantine/core';
+import { Suspense } from 'react';
 import { Carousel } from '@mantine/carousel';
 import { useDisclosure } from '@mantine/hooks';
 import { 
-  IconChevronRight, IconChevronLeft, IconTrash, IconPhoto
+  IconChevronRight, IconChevronLeft, IconTrash, IconPhoto, IconArrowLeft
 } from '@tabler/icons-react';
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { DashboardTable } from '../components/DashboardTable';
 import { api } from '../../lib/api';
 
@@ -45,7 +46,7 @@ function RowCarousel({ images, onZoom, fullWidth }: { images: string[], onZoom: 
       >
         {images.map((img, i) => (
           <Carousel.Slide key={i}>
-            <Image src={img} fallbackSrc="https://placehold.co/160x90/222/555?text=SIN+FOTO" fit="cover" h="100%" style={{ cursor: 'pointer' }} onClick={() => onZoom(img)} />
+            <Image src={img} alt={`Captura de estancia ${i + 1}`} fallbackSrc="https://placehold.co/160x90/222/555?text=SIN+FOTO" fit="cover" h="100%" style={{ cursor: 'pointer' }} onClick={() => onZoom(img)} />
           </Carousel.Slide>
         ))}
       </Carousel>
@@ -58,7 +59,8 @@ function RowCarousel({ images, onZoom, fullWidth }: { images: string[], onZoom: 
   );
 }
 
-export default function EstanciasSection() {
+function EstanciasContent() {
+  const router = useRouter();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
   const [loading, setLoading] = useState(false);
@@ -97,12 +99,31 @@ export default function EstanciasSection() {
       const s = searchParams.get('s') || undefined;
       const start = searchParams.get('start') || undefined;
       const end = searchParams.get('end') || undefined;
-      const response = await api.getEstanciasHistorial(s, start, end, currentSkip, LIMIT);
-      
+      const [response, shifts] = await Promise.all([
+        api.getEstanciasHistorial(s, start, end, currentSkip, LIMIT),
+        currentSkip === 0 ? api.getTurnos(s, start, end) : Promise.resolve([])
+      ]);
+
+      const mapped = response.map(item => ({ ...item, timestamp: item.fecha }));
+      const turnoMapped = shifts.map(s => ({
+        id: `turno-${s.id}`,
+        tipo: 'turno',
+        timestamp: s.inicio,
+        fin_nombre: s.worker_out,
+        inicio_nombre: s.worker,
+        hora: formatDate24(s.inicio)
+      }));
+
+      const combined = [...mapped, ...turnoMapped].sort((a,b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
       if (currentSkip === 0) {
-        setData(response);
+        setData(combined);
       } else {
-        setData(prev => [...prev, ...response]);
+        setData(prev => [...prev, ...mapped].sort((a,b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        ));
       }
 
       if (response.length < LIMIT) {
@@ -231,10 +252,21 @@ export default function EstanciasSection() {
   return (
     <Box>
       <Stack gap="xl">
-        <Box pb="md" mb="xl">
-          <Title order={2} c="white" style={{ fontFamily: 'Poppins, sans-serif' }}>Control de Estancias</Title>
-          <Text size="sm" c="dimmed">Historial de hospedajes unificado bajo el mismo estándar visual.</Text>
-        </Box>
+        <Group align="flex-start" gap="lg" mb="xl">
+          <ActionIcon 
+            variant="light" 
+            color="teal" 
+            size="xl" 
+            onClick={() => router.push('/dashboard/resumen')}
+            style={{ marginTop: 5 }}
+          >
+            <IconArrowLeft size={24} />
+          </ActionIcon>
+          <Box>
+            <Title order={2} c="white" style={{ fontFamily: 'Poppins, sans-serif' }}>Control de Estancias</Title>
+            <Text size="sm" c="dimmed">Historial de hospedajes unificado bajo el mismo estándar visual.</Text>
+          </Box>
+        </Group>
 
         {loading ? (
           <Center h={400}>
@@ -260,11 +292,19 @@ export default function EstanciasSection() {
         styles={{ content: { backgroundColor: '#141414', color: 'white' }, header: { backgroundColor: '#1e1e1e', borderBottom: '1px solid #2a2a2a' } }}>
         {selectedImage && (
           <Stack>
-            <Image src={selectedImage} radius="md" />
+            <Image src={selectedImage} alt="Captura de estancia ampliada" radius="md" />
             <Group justify="space-between"><Text size="xs" c="dimmed">Seguridad - Captura de Portón</Text><ActionIcon variant="light" color="red"><IconTrash size={18} /></ActionIcon></Group>
           </Stack>
         )}
       </Modal>
     </Box>
+  );
+}
+
+export default function EstanciasSection() {
+  return (
+    <Suspense fallback={<Center h={400}><Loader color="teal" size="lg" type="bars" /></Center>}>
+      <EstanciasContent />
+    </Suspense>
   );
 }

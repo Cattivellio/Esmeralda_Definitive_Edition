@@ -18,6 +18,7 @@ import { notifications } from '@mantine/notifications';
 import { Habitacion } from '../types';
 import { useState, useEffect, useRef } from 'react';
 import DataTableModal from './DataTableModal';
+import { api } from '../app/lib/api';
 
 interface HabitacionModalProps {
   habitacion: Habitacion | null;
