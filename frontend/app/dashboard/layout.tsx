@@ -36,7 +36,7 @@ import {
   IconChevronUp,
   IconWallet
 } from '@tabler/icons-react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 
@@ -48,22 +48,25 @@ const POPPINS_FONT = 'Poppins, sans-serif';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   
-  // Initialize from URL or defaults
-  const initialSearch = searchParams.get('s') || '';
-  const initialStart = searchParams.get('start') ? new Date(searchParams.get('start')!) : null;
-  const initialEnd = searchParams.get('end') ? new Date(searchParams.get('end')!) : null;
-
   const [opened, { toggle, close }] = useDisclosure();
   const isMobile = useMediaQuery('(max-width: 48em)');
-  const [searchTerm, setSearchTerm] = useState(initialSearch);
-  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([initialStart, initialEnd]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
   const [time, setTime] = useState<string | null>(null);
   const [filtersOpened, setFiltersOpened] = useState(false);
 
   useEffect(() => {
-    // Initial set
+    // Initialize from URL on client side only
+    const params = new URLSearchParams(window.location.search);
+    const s = params.get('s') || '';
+    const start = params.get('start') ? new Date(params.get('start')!) : null;
+    const end = params.get('end') ? new Date(params.get('end')!) : null;
+    
+    setSearchTerm(s);
+    setDateRange([start, end]);
+    
+    // Initial clock set
     setTime(new Date().toLocaleTimeString());
     
     // Update every second
