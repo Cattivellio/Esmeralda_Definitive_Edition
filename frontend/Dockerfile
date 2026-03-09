@@ -13,9 +13,7 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Variable de entorno para el build (si el frontend necesita saber la URL de la API en build time)
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Build the Next.js application
 RUN npm run build
 
 # 3. Imagen de producción, copia todos los archivos y ejecuta next

@@ -34,16 +34,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - NEXT_PUBLIC_API_URL=http://${RPI_IP:-localhost}:8000
     container_name: esmeralda-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
     depends_on:
       - backend
-    environment:
-      - NEXT_PUBLIC_API_URL=http://${RPI_IP:-localhost}:8000
     logging:
       driver: "json-file"
       options:
