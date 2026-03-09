@@ -152,6 +152,7 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
   const [loadingAccessHistory, setLoadingAccessHistory] = useState(false);
 
   const [showRetoqueModal, setShowRetoqueModal] = useState(false);
+  const [showCheckoutCamareraModal, setShowCheckoutCamareraModal] = useState(false);
   const [camareraId, setCamareraId] = useState<string | null>(null);
   const [camareras, setCamareras] = useState<{value: string, label: string}[]>([]);
   const [loadingRetoque, setLoadingRetoque] = useState(false);
@@ -359,6 +360,7 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
         </Badge>
       );
     }},
+    { key: 'camarera_entrega', label: 'Chequeo', render: (val: string) => <Text size="xs" fw={500} c="dimmed">{val || 'No registrada'}</Text> },
     ...Array.from(new Set(roomHistoryData.flatMap(h => Object.keys(h.pagos || {})))).map(method => ({
       key: `pagos.${method}`,
       label: method,
@@ -900,7 +902,7 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
     }
   };
 
-  const handleLiberar = async () => {
+  const handleLiberar = () => {
     if (!habitacion) return;
 
     // Validación de presencia para egreso
@@ -914,9 +916,16 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
       return;
     }
 
+    setCamareraId(null);
+    setShowCheckoutCamareraModal(true);
+  };
+
+  const executeLiberar = async () => {
+    if (!habitacion || !camareraId) return;
+
     setLoading(true);
     try {
-      await api.liberarHabitacion(habitacion.id);
+      await api.liberarHabitacion(habitacion.id, parseInt(camareraId));
       notifications.show({
         title: 'Éxito',
         message: '¡Habitación liberada correctamente!',
@@ -935,6 +944,7 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
       });
     } finally {
       setLoading(false);
+      setShowCheckoutCamareraModal(false);
     }
   };
 
@@ -2012,35 +2022,78 @@ export default function HabitacionModal({ habitacion, initialData, opened, onClo
           </Stack>
         </Modal>
 
-        <Modal 
-          opened={showRetoqueModal} 
-          onClose={() => {setShowRetoqueModal(false); setCamareraId(null);}} 
-          title={<Text fw={700} c="white">Solicitar Retoque</Text>}
-          centered
-          overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
-          styles={{ 
-            content: { backgroundColor: '#1e1e1e', color: 'white', border: '1px solid #333' }, 
-            header: { backgroundColor: '#1e1e1e', borderBottom: '1px solid #2a2a2a' },
-            title: { color: 'white' }
-          }}
-        >
-          <Stack>
-            <Text size="sm">¿Está seguro que desea poner la habitación en retoque? El estado visual cambiará y no podrá egresarla hasta finalizar.</Text>
-            <Select
-              label={<Text size={LABEL_SIZE} c="white" fw={500} style={{ fontFamily: ROBOTO_FONT }}>Seleccione la camarera</Text>}
-              placeholder="Seleccione camarera"
-              data={camareras}
-              value={camareraId}
-              onChange={setCamareraId}
-              styles={{ input: { backgroundColor: '#ffffff', color: 'black', height: INPUT_HEIGHT, minHeight: INPUT_HEIGHT, fontSize: INPUT_SIZE, fontFamily: ROBOTO_FONT } }}
-              required
-            />
-            <Group justify="flex-end" mt="md">
-              <Button variant="light" color="gray" onClick={() => setShowRetoqueModal(false)}>Cancelar</Button>
-              <Button color="grape" onClick={handleRetoque} loading={loadingRetoque} disabled={!camareraId}>Confirmar Retoque</Button>
-            </Group>
-          </Stack>
-        </Modal>
+      <Modal
+        opened={showRetoqueModal}
+        onClose={() => {
+          setShowRetoqueModal(false);
+          setCamareraId(null);
+        }}
+        title={<Text fw={700} c="white">Solicitar Retoque</Text>}
+        centered
+        overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
+        styles={{
+          content: { backgroundColor: '#1e1e1e', color: 'white', border: '1px solid #333' },
+          header: { backgroundColor: '#1e1e1e', borderBottom: '1px solid #2a2a2a' },
+          title: { color: 'white' }
+        }}
+      >
+        <Stack>
+          <Text size="sm">¿Está seguro que desea poner la habitación en retoque? El estado visual cambiará y no podrá egresarla hasta finalizar.</Text>
+          <Select
+            label={<Text size={LABEL_SIZE} c="white" fw={500} style={{ fontFamily: ROBOTO_FONT }}>Seleccione la camarera</Text>}
+            placeholder="Seleccione camarera"
+            data={camareras}
+            value={camareraId}
+            onChange={setCamareraId}
+            styles={{ input: { backgroundColor: '#ffffff', color: 'black', height: INPUT_HEIGHT, minHeight: INPUT_HEIGHT, fontSize: INPUT_SIZE, fontFamily: ROBOTO_FONT } }}
+            required
+          />
+          <Group justify="flex-end" mt="md">
+            <Button variant="light" color="gray" onClick={() => setShowRetoqueModal(false)}>Cancelar</Button>
+            <Button color="grape" onClick={handleRetoque} loading={loadingRetoque} disabled={!camareraId}>Confirmar Retoque</Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={showCheckoutCamareraModal}
+        onClose={() => setShowCheckoutCamareraModal(false)}
+        title={<Text fw={700} size="lg">Confirmación de Salida (Checkout)</Text>}
+        centered
+        styles={{
+          header: { backgroundColor: '#1e1e1e', borderBottom: '1px solid #2a2a2a' },
+          content: { backgroundColor: '#141414', color: 'white' },
+          title: { color: 'white' },
+          close: { color: 'white' }
+        }}
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            ¿Qué camarera realizó el chequeo de la habitación {habitacion.numero} para confirmar la salida?
+          </Text>
+          <Select
+            label={<Text size={LABEL_SIZE} c="white" fw={500} style={{ fontFamily: ROBOTO_FONT }}>Camarera Encargada</Text>}
+            placeholder="Seleccione camarera"
+            data={camareras}
+            value={camareraId}
+            onChange={setCamareraId}
+            styles={{ input: { backgroundColor: '#ffffff', color: 'black', height: INPUT_HEIGHT, minHeight: INPUT_HEIGHT, fontSize: INPUT_SIZE, fontFamily: ROBOTO_FONT } }}
+            required
+          />
+          <Group justify="flex-end" mt="md">
+            <Button variant="light" color="gray" onClick={() => setShowCheckoutCamareraModal(false)}>Cancelar</Button>
+            <Button
+              color="green"
+              onClick={executeLiberar}
+              loading={loading}
+              disabled={!camareraId}
+              leftSection={<IconCheck size={18} />}
+            >
+              Confirmar Salida
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </>
   );
 }

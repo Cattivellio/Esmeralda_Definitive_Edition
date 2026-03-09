@@ -148,7 +148,7 @@ export const api = {
   desbloquearHabitacion: (id: number) => request(`/habitaciones/${id}/desbloquear`, { method: 'POST' }),
   setRetoque: (id: number, camarera_id: number) => request(`/habitaciones/${id}/retoque`, { method: 'POST', body: JSON.stringify({ camarera_id }) }),
   finalizarRetoque: (id: number) => request(`/habitaciones/${id}/finalizar_retoque`, { method: 'POST' }),
-  liberarHabitacion: (id: number) => request(`/habitaciones/${id}/liberar`, { method: 'POST' }),
+  liberarHabitacion: (id: number, camarera_id: number) => request(`/habitaciones/${id}/liberar`, { method: 'POST', body: JSON.stringify({ camarera_id }) }),
   pasarAHospedaje: (id: number) => request(`/habitaciones/${id}/pasar_a_hospedaje`, { method: 'POST' }),
 
   // Reservas

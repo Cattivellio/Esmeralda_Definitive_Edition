@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { 
   Box, Title, Text, Badge, Group, Stack, ActionIcon, Tooltip, Table, Loader, Center, Card, Divider, Button
 } from '@mantine/core';

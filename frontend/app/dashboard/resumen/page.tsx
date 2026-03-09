@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { 
   Box, Title, Text, SimpleGrid, Paper, Group, Stack, Badge, Modal, 
   ActionIcon, Divider, Avatar, Center, ThemeIcon, Loader, ScrollArea

@@ -10,7 +10,7 @@ from ..infrastructure.models import (
 )
 from .schemas import (
     IngresoRequest, EstanciaDetalleResponse, CambiarHabitacionRequest, 
-    BloquearRequest, RetoqueRequest, LimpiarRequest, ReservaResponse
+    BloquearRequest, RetoqueRequest, LimpiarRequest, ReservaResponse, CheckoutRequest
 )
 import uuid
 from datetime import datetime, timedelta, time, timezone
@@ -586,7 +586,7 @@ def cambiar_habitacion(id: int, request: CambiarHabitacionRequest, db: Session =
     return {"status": "success", "message": "Habitación cambiada exitosamente"}
 
 @router.post("/{id}/liberar")
-def liberar_habitacion(id: int, db: Session = Depends(get_db)):
+def liberar_habitacion(id: int, request: CheckoutRequest, db: Session = Depends(get_db)):
     # 1. Buscar la habitación
     habitacion = db.query(HabitacionDB).filter(HabitacionDB.id == id).first()
     if not habitacion:
@@ -601,6 +601,7 @@ def liberar_habitacion(id: int, db: Session = Depends(get_db)):
         if estancia:
             estancia.estado = EstadoEstancia.finalizada
             estancia.fecha_salida_real = datetime.utcnow()
+            estancia.camarera_checkout_id = request.camarera_id
         
         # Finalizar vinculación de habitación
         vinculo = db.query(EstanciaHabitacion).filter(
@@ -614,6 +615,15 @@ def liberar_habitacion(id: int, db: Session = Depends(get_db)):
     # 3. Poner la habitación en estado sucia y quitar la estancia actual
     habitacion.estancia_actual_id = None
     habitacion.estado = EstadoHabitacion.sucia
+    
+    # Log the checkout check
+    camarera = db.query(User).filter(User.id == request.camarera_id).first()
+    if camarera:
+        db.add(LogDB(
+            usuario_id=camarera.id,
+            accion="Checkout Check",
+            descripcion=f"Habitación {habitacion.numero} revisada por {camarera.nombre} para salida"
+        ))
     
     db.commit()
     return {"status": "success", "message": "Habitación liberada correctamente (estado Sucia)"}
@@ -781,6 +791,9 @@ def get_historial_habitacion(id: int, db: Session = Depends(get_db)):
             nombre_metodo = metodo.nombre if metodo else "Desconocido"
             pagos_dict[nombre_metodo] = pagos_dict.get(nombre_metodo, 0) + p.monto
 
+        camarera_obj = db.query(User).filter(User.id == estancia.camarera_checkout_id).first()
+        camarera_nombre = camarera_obj.nombre if camarera_obj else "No registrada"
+
         historial.append({
             "fecha_entrada": v.fecha_inicio.replace(tzinfo=timezone.utc) if v.fecha_inicio else None,
             "fecha_salida": (v.fecha_fin or estancia.fecha_salida_real).replace(tzinfo=timezone.utc) if (v.fecha_fin or estancia.fecha_salida_real) else None,
@@ -789,7 +802,8 @@ def get_historial_habitacion(id: int, db: Session = Depends(get_db)):
             "pagos": pagos_dict,
             "procedencia": estancia.procedencia,
             "destino": estancia.destino,
-            "observaciones": estancia.observaciones
+            "observaciones": estancia.observaciones,
+            "camarera_entrega": camarera_nombre
         })
     
     return historial

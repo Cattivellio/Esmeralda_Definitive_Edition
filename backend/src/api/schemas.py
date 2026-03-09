@@ -95,6 +95,9 @@ class RetoqueRequest(BaseModel):
 class LimpiarRequest(BaseModel):
     camarera_id: int
 
+class CheckoutRequest(BaseModel):
+    camarera_id: int
+
 class NovedadSchema(BaseModel):
     id: Optional[int] = None
     fecha: Optional[datetime] = None

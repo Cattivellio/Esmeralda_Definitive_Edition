@@ -123,6 +123,7 @@ class EstanciaDB(Base):
     destino = Column(String(100))
     observaciones = Column(Text)
     usuario_creacion_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    camarera_checkout_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     fecha_creacion = Column(DateTime, default=datetime.utcnow)
     
     pagos = relationship("PagoDB", back_populates="estancia")
