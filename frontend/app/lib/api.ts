@@ -1,6 +1,6 @@
 export const BASE_URL = typeof window !== 'undefined' 
   ? `http://${window.location.hostname}:8000/api` 
-  : 'http://localhost:8000/api';
+  : 'http://backend:8000/api';
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${BASE_URL}${endpoint}`, {
